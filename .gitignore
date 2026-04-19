@@ -1,0 +1,17 @@
+# Packaging
+build/
+dist/
+eggs/
+*.egg/
+*.egg-info/
+wheels/
+
+# Unit testing
+.pytest_cache/
+
+# Environments
+.env
+.venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
