@@ -1,1 +1,3 @@
+fastapi
 haystack-ai>=2.0,<3.0
+uvicorn
