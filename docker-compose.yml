@@ -1,0 +1,16 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.3
+    container_name: bq-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.license.self_generated.type=trial
+      - http.port=9200
+    ports:
+      - "${ES_HOST}:${ES_PORT}:9200"
+    volumes:
+      - bq-esdata:/usr/share/elasticsearch/data
+
+volumes:
+  bq-esdata:
