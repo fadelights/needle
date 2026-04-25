@@ -10,7 +10,7 @@ services:
     ports:
       - "${ES_HOST}:${ES_PORT}:9200"
     volumes:
-      - bq-esdata:/usr/share/elasticsearch/data
+      - esdata:/usr/share/elasticsearch/data
 
 volumes:
-  bq-esdata:
+  esdata:

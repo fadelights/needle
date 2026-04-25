@@ -4,6 +4,8 @@ dist/
 eggs/
 *.egg/
 *.egg-info/
+__pycache__/
+*.pyc
 wheels/
 
 # Unit testing
