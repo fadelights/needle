@@ -1,7 +1,9 @@
 accelerate
 elasticsearch-haystack
+elasticsearch>=8.0.0,<9.0.0
 fastapi
 haystack-ai>=2.0,<3.0
+python-multipart
 sentence-transformers
 transformers
 uvicorn
