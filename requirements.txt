@@ -1,4 +1,5 @@
 accelerate
+elasticsearch-haystack
 fastapi
 haystack-ai>=2.0,<3.0
 sentence-transformers
