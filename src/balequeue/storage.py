@@ -11,6 +11,7 @@ ES_MAPPING = {
         "doc_id": {"type": "keyword"},
         "chunk_index": {"type": "integer"},
         "source_file": {"type": "keyword"},
+        "file_path": {"type": "keyword"},
         "title": {"type": "text", "analyzer": "english"},
         "content": {"type": "text", "analyzer": "english"},
         "embedding": {
