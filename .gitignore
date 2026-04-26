@@ -17,3 +17,6 @@ wheels/
 
 # Jupyter Notebook
 .ipynb_checkpoints/
+
+# Sample data
+data/
