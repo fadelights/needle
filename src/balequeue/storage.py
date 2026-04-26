@@ -7,10 +7,20 @@ from .config import settings
 ES_MAPPING = {
     "dynamic": "strict",
     "properties": {
-        "business_id": {"type": "keyword"},
-        "doc_id": {"type": "keyword"},
-        "chunk_index": {"type": "integer"},
+        "id": {"type": "keyword"},
         "file_path": {"type": "keyword"},
+        "business_id": {"type": "keyword"},
+        "source_id": {"type": "keyword"},
+        "page_number": {"type": "integer"},
+        "split_id": {"type": "integer"},
+        "split_idx_start": {"type": "integer"},
+        "_split_overlap": {
+            "type": "nested",
+            "properties": {
+                "doc_id": {"type": "keyword"},
+                "range": {"type": "integer"},
+            },
+        },
         "content": {"type": "text", "analyzer": "english"},
         "embedding": {
             "type": "dense_vector",
@@ -18,13 +28,8 @@ ES_MAPPING = {
             "index": True,
             "similarity": "cosine",
         },
-        "metadata": {
-            "type": "object",
-            "properties": {
-                "created_at": {"type": "date"},
-                "updated_at": {"type": "date"},
-            },
-        },
+        "blob": {"type": "binary"},
+        "score": {"type": "float"},
     },
 }
 
