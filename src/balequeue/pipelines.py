@@ -21,7 +21,12 @@ class IndexingPipeline(Pipeline):
         super().__init__()
         self.add_component("converter", TextFileToDocument())
         self.add_component(
-            "splitter", DocumentSplitter(split_by="sentence", split_length=10)
+            "splitter",
+            DocumentSplitter(
+                split_by="sentence",
+                split_length=settings.chunk_size,
+                split_overlap=settings.chunk_overlap,
+            )
         )
         self.add_component(
             "embedder",
