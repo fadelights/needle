@@ -10,9 +10,7 @@ ES_MAPPING = {
         "business_id": {"type": "keyword"},
         "doc_id": {"type": "keyword"},
         "chunk_index": {"type": "integer"},
-        "source_file": {"type": "keyword"},
         "file_path": {"type": "keyword"},
-        "title": {"type": "text", "analyzer": "english"},
         "content": {"type": "text", "analyzer": "english"},
         "embedding": {
             "type": "dense_vector",
@@ -21,10 +19,8 @@ ES_MAPPING = {
             "similarity": "cosine",
         },
         "metadata": {
-            "type": "nested",
+            "type": "object",
             "properties": {
-                "category": {"type": "keyword"},
-                "language": {"type": "keyword"},
                 "created_at": {"type": "date"},
                 "updated_at": {"type": "date"},
             },
