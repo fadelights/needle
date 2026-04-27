@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from gradio.routes import mount_gradio_app
 
 from balequeue.api import router
 from balequeue.config import settings
+from balequeue.ui import client
 
 
 @asynccontextmanager
@@ -20,7 +23,17 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(router, prefix="/api")
+app = mount_gradio_app(app, client, path="/client")
 
 
 @app.get("/")
