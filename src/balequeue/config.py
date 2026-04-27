@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, ConfigDict
 
 
 class Settings(BaseSettings):
@@ -9,11 +9,14 @@ class Settings(BaseSettings):
     es_port: int = Field(9200, env="ES_PORT")
     es_index: str = Field("documents", env="ES_INDEX")
 
-    openai_api_key: str = Field(..., env="OPENAI_API_KEY")
+    openai_api_key: str = Field("", env="OPENAI_API_KEY")
+    hf_api_token: str = Field("", env="HF_API_TOKEN")
 
+    embedding_provider: str = Field("openai", env="EMBEDDING_PROVIDER")
     embedding_model: str = Field("text-embedding-3-small", env="EMBEDDING_MODEL")
     embedding_dim: int = Field(1536, env="EMBEDDING_DIM")
 
+    generator_provider: str = Field("openai", env="GENERATOR_PROVIDER")
     generator_model: str = Field("gpt-4o-mini", env="GENERATOR_MODEL")
     max_new_tokens: int = Field(256, env="MAX_NEW_TOKENS")
 
@@ -23,9 +26,9 @@ class Settings(BaseSettings):
 
     balequeue_port: int = Field(8000, env="BALEQUEUE_PORT")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = ConfigDict(
+        env_file=".env", env_file_encoding="utf-8"
+    )
 
 
 @lru_cache()
