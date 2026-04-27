@@ -8,7 +8,7 @@ services:
       - xpack.license.self_generated.type=trial
       - http.port=9200
     ports:
-      - "${ES_HOST}:${ES_PORT}:9200"
+      - "${ES_HOST}:${ES_PORT}:9200" # TODO: Currently served on localhost to prevent security issues. Add auth and serve on all interfaces in the future.
     volumes:
       - esdata:/usr/share/elasticsearch/data
     restart: unless-stopped
