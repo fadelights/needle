@@ -6,9 +6,12 @@ gradio>=6.13.0
 haystack-ai>=2.0,<3.0
 kernels
 nltk>=3.9.0
+passlib[bcrypt]
 pydantic
 pydantic-settings
+python-jose[cryptography]
 python-multipart
 sentence-transformers
+sqlalchemy
 transformers
 uvicorn
