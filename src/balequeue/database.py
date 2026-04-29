@@ -4,6 +4,7 @@ from sqlalchemy.orm import sessionmaker
 
 from .config import settings
 
+# TODO: We should migrate to PostgreSQL for production use.
 SQLALCHEMY_DATABASE_URL = settings.auth_db_url
 
 
