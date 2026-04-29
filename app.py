@@ -6,12 +6,17 @@ from gradio.routes import mount_gradio_app
 
 from balequeue.api import router
 from balequeue.config import settings
+from balequeue.database import Base, engine
+from balequeue.models import (
+    Business,
+)  # noqa: F401 - This import is used for Base.metadata.create_all
 from balequeue.ui import client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    Base.metadata.create_all(bind=engine)
     yield
     # Shutdown
     pass
