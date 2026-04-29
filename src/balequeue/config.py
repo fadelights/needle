@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     es_index: str = Field("documents", env="ES_INDEX")
 
     auth_db_url: str = Field("sqlite:///./data/balequeue.db", env="AUTH_DATABASE_URL")
-    jwd_secret_key: str = Field(..., env="JWT_SECRET_KEY")
+    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
     auth_algorithm: str = Field("HS256", env="AUTH_ALGORITHM")
     access_token_expire_minutes: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
 

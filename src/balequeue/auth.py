@@ -32,7 +32,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     to_encode.update({"exp": expiration})
     encoded_jwt = jwt.encode(
-        to_encode, settings.jwd_secret_key, algorithm=settings.auth_algorithm
+        to_encode, settings.jwt_secret_key, algorithm=settings.auth_algorithm
     )
     return encoded_jwt
 
@@ -55,7 +55,7 @@ async def get_current_business(
     )
     try:
         payload = jwt.decode(
-            token, settings.jwd_secret_key, algorithms=[settings.auth_algorithm]
+            token, settings.jwt_secret_key, algorithms=[settings.auth_algorithm]
         )
         business_name: str = payload.get("sub")
         if business_name is None:
