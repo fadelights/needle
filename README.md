@@ -6,7 +6,7 @@ Intelligent QA for businesses.
 
 To-Do:
 
-- [ ] Add auth
+- [x] Add auth
     - [ ] UI for business registration, login, and logout
 - [ ] Store original uploaded documents in an object storage (e.g. S3, or MinIO)
 - [ ] Ability to delete documents and associated data

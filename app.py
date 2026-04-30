@@ -2,7 +2,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from gradio.routes import mount_gradio_app
 
 from balequeue.api import router
 from balequeue.config import settings
@@ -10,7 +9,6 @@ from balequeue.database import Base, engine
 from balequeue.models import (
     Business,
 )  # noqa: F401 - This import is used for Base.metadata.create_all
-from balequeue.ui import client
 
 
 @asynccontextmanager
@@ -38,7 +36,6 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
-app = mount_gradio_app(app, client, path="/client")
 
 
 @app.get("/")
