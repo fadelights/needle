@@ -1,6 +1,7 @@
 from functools import lru_cache
+
+from pydantic import ConfigDict, Field
 from pydantic_settings import BaseSettings
-from pydantic import Field, ConfigDict
 
 
 class Settings(BaseSettings):
@@ -8,6 +9,13 @@ class Settings(BaseSettings):
     es_host: str = Field("localhost", env="ES_HOST")
     es_port: int = Field(9200, env="ES_PORT")
     es_index: str = Field("documents", env="ES_INDEX")
+
+    minio_root_user: str = Field(..., env="MINIO_ROOT_USER")
+    minio_root_password: str = Field(..., env="MINIO_ROOT_PASSWORD")
+    minio_secure: bool = Field(False, env="MINIO_SECURE")
+    minio_host: str = Field("localhost", env="MINIO_HOST")
+    minio_port: int = Field(9000, env="MINIO_PORT")
+    minio_console_port: int = Field(9001, env="MINIO_CONSOLE_PORT")
 
     auth_db_url: str = Field("sqlite:///./data/balequeue.db", env="AUTH_DATABASE_URL")
     jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")

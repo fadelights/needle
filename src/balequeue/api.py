@@ -25,6 +25,7 @@ from .schemas import (
     Token,
     UploadResponse,
 )
+from .storage import s3_storage
 
 router = APIRouter()
 
@@ -66,9 +67,7 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ) -> Token:
     business = db.query(Business).filter(Business.name == form_data.username).first()
-    if not business or not verify_passwd(
-        form_data.password, business.hashed_password
-    ):
+    if not business or not verify_passwd(form_data.password, business.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -102,17 +101,33 @@ async def upload_file(
             detail=f"Unsupported file type '{file.content_type}'. Accepted: {SUPPORTED_MIME_TYPES}",
         )
 
+    file_content = await file.read()
+    try:
+        s3_storage.upload_file(
+            bucket=current_business.business_id,
+            obj=file.filename,
+            data=file_content,
+            content_type=file.content_type,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document to object storage: {exc}",
+        ) from exc
+
     with tempfile.NamedTemporaryFile(
         delete=False, suffix=Path(file.filename).suffix
     ) as temp_file:
-        temp_file.write(await file.read())
+        temp_file.write(file_content)
         temp_path = temp_file.name
 
     try:
         _ = indexing_pipeline.run(
             data={
                 "converter": {
-                    "sources": [temp_path],
+                    "sources": [
+                        temp_path
+                    ],  # TODO: find a way to avoid this temp file step and use original filename (S3Downloader or similar)
                     "meta": {
                         "business_id": current_business.business_id,
                     },
