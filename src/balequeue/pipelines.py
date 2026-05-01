@@ -1,7 +1,7 @@
 from haystack import Pipeline
 from haystack.components.builders import PromptBuilder
-from haystack.components.converters import PyPDFToDocument, TextFileToDocument
-from haystack.components.preprocessors import DocumentSplitter
+from haystack.components.converters import MultiFileConverter
+from haystack.components.preprocessors import DocumentPreprocessor
 from haystack.components.writers import DocumentWriter
 from haystack_integrations.components.retrievers.elasticsearch import (
     ElasticsearchEmbeddingRetriever,
@@ -17,10 +17,10 @@ class IndexingPipeline(Pipeline):
 
     def __init__(self):
         super().__init__()
-        self.add_component("converter", TextFileToDocument())
+        self.add_component("converter", MultiFileConverter())  # TODO: Handle "unclassified" files
         self.add_component(
-            "splitter",
-            DocumentSplitter(
+            "preprocessor",
+            DocumentPreprocessor(
                 split_by="sentence",
                 split_length=settings.chunk_size,
                 split_overlap=settings.chunk_overlap,
@@ -29,8 +29,8 @@ class IndexingPipeline(Pipeline):
         self.add_component("embedder", _get_document_embedder())
         self.add_component("writer", DocumentWriter(document_store=document_store))
 
-        self.connect("converter", "splitter")
-        self.connect("splitter", "embedder")
+        self.connect("converter", "preprocessor")
+        self.connect("preprocessor", "embedder")
         self.connect("embedder", "writer")
 
 

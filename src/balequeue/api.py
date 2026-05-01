@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
+from haystack.dataclasses import ByteStream
 from sqlalchemy.orm import Session
 
 from .auth import (
@@ -29,7 +30,17 @@ from .storage import s3_storage
 
 router = APIRouter()
 
-SUPPORTED_MIME_TYPES = {"text/plain"}
+SUPPORTED_MIME_TYPES = {
+    "application/json",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # PPTX
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # XLSX
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # DOCX
+    "text/csv",
+    "text/html",
+    "text/markdown",
+    "text/plain",
+}
 
 # TODO: Are pipelines thread-safe?
 # If not, we may need to create new instances per request or use locks.
@@ -115,21 +126,21 @@ async def upload_file(
             detail=f"Failed to upload document to object storage: {exc}",
         ) from exc
 
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=Path(file.filename).suffix
-    ) as temp_file:
-        temp_file.write(file_content)
-        temp_path = temp_file.name
+    byte_stream = ByteStream(
+        data=file_content,
+        mime_type=file.content_type,
+    )
 
     try:
         _ = indexing_pipeline.run(
             data={
                 "converter": {
                     "sources": [
-                        temp_path
-                    ],  # TODO: find a way to avoid this temp file step and use original filename (S3Downloader or similar)
+                        byte_stream,
+                    ],
                     "meta": {
                         "business_id": current_business.business_id,
+                        "file_path": file.filename,
                     },
                 },
             }
@@ -139,8 +150,6 @@ async def upload_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to upload document: {exc}",
         ) from exc
-    finally:
-        Path(temp_path).unlink(missing_ok=True)
 
     return UploadResponse(
         message="Document uploaded successfully.",

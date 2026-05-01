@@ -1,0 +1,10 @@
+jq
+markdown-it-py
+mdit_plain
+openpyxl
+pandas
+pypdf
+python-docx
+python-pptx
+tabulate
+trafilatura
