@@ -1,3 +1,5 @@
+from typing import List
+
 import boto3
 from botocore.exceptions import ClientError
 from haystack_integrations.document_stores.elasticsearch import (
@@ -40,6 +42,24 @@ class S3Storage:
             ContentType=content_type,
         )
 
+    def list_files(self, bucket: str) -> List[str]:
+        """List all files in an S3 bucket."""
+        self._create_bucket_if_not_exists(bucket)
+        response = self.client.list_objects_v2(Bucket=bucket)
+        return [item["Key"] for item in response.get("Contents", [])]
+
+    def delete_file(self, bucket: str, obj: str):
+        """Delete a file from an S3 bucket."""
+        try:
+            self.client.head_object(Bucket=bucket, Key=obj)
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "404":
+                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
+            else:
+                raise
+
+        self.client.delete_object(Bucket=bucket, Key=obj)
 
 ES_MAPPING = {
     "dynamic": "strict",

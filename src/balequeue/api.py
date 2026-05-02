@@ -1,6 +1,7 @@
 import tempfile
 from datetime import timedelta
 from pathlib import Path
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -26,7 +27,7 @@ from .schemas import (
     Token,
     UploadResponse,
 )
-from .storage import s3_storage
+from .storage import document_store, s3_storage
 
 router = APIRouter()
 
@@ -90,7 +91,7 @@ async def login_for_access_token(
     )
     return Token(access_token=access_token, token_type="bearer")
 
-
+# TODO: Handle duplicate uploads
 @router.post(
     "/upload",
     response_model=UploadResponse,
@@ -155,6 +156,76 @@ async def upload_file(
         message="Document uploaded successfully.",
         business_id=current_business.business_id,
     )
+
+
+@router.get("/list", response_model=List[str])
+async def list_files(
+    current_business: Business = Depends(get_current_business),
+) -> List[str]:
+    try:
+        return s3_storage.list_files(bucket=current_business.business_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {exc}",
+        ) from exc
+
+
+@router.delete("/delete")
+async def delete_file(
+    file_path: str,
+    current_business: Business = Depends(get_current_business),
+) -> Dict[str, str]:
+    if not file_path:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File name must be provided.",
+        )
+
+    # 1. Delete from S3 storage
+    try:
+        s3_storage.delete_file(bucket=current_business.business_id, obj=file_path)
+    except FileNotFoundError:
+        # TODO: We should still check the document store and delete any documents that reference this file,
+        # even if the file itself is missing from storage.
+        # Otherwise we could end up with orphaned documents that can never be deleted.
+        return {"message": f"Document '{file_path}' does not exist."}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document: {exc}",
+        ) from exc
+
+    # 2. Delete from document store
+    filters = {
+        "operator": "AND",
+        "conditions": [
+            {
+                "field": "meta.business_id",
+                "operator": "==",
+                "value": current_business.business_id,
+            },
+            {
+                "field": "meta.file_path",
+                "operator": "==",
+                "value": file_path,
+            },
+        ],
+    }
+
+    try:
+        documents = document_store.filter_documents(filters=filters)
+        ids = [document.id for document in documents]
+
+        if ids:
+            document_store.delete_documents(document_ids=ids)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document from document store: {exc}",
+        ) from exc
+
+    return {"message": f"Document '{file_path}' deleted successfully."}
 
 
 @router.post("/query", response_model=QueryResponse)
