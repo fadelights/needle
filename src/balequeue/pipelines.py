@@ -39,6 +39,7 @@ class QueryPipeline(Pipeline):
 
     def __init__(self):
         super().__init__()
+        # TODO: The agent will hallucinate if there are no docs
         template = """
         Given the following information, answer the question.
         Don't use your own knowledge - only use the provided documents.
