@@ -13,6 +13,7 @@ To-Do:
 - [x] PDF file support
 - [!] Chat UI for clients
 - [ ] Provide session/history management APIs for businesses
-- [ ] Add live-file capabilities
+- [x] Add live-file capabilities
 - [ ] Research Haystack's agentic capabilities
 - [ ] Add unit tests
+- [ ] Async database and pipeline operations
