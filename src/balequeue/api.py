@@ -21,6 +21,8 @@ from .pipelines import IndexingPipeline, QueryPipeline
 from .schemas import (
     BusinessCreate,
     BusinessOut,
+    FileContentResponse,
+    FileUpdateRequest,
     QueryRequest,
     QueryResponse,
     SourceChunk,
@@ -91,6 +93,93 @@ async def login_for_access_token(
     )
     return Token(access_token=access_token, token_type="bearer")
 
+
+async def _process_upload(
+    business_id: str, file_path: str, content: bytes, mime_type: str
+):
+    """
+    Helper function to upload file to S3 and run the indexing pipeline.
+    Used by both upload and update endpoints.
+    """
+    try:
+        s3_storage.upload_file(
+            bucket=business_id,
+            obj=file_path,
+            data=content,
+            content_type=mime_type,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document to object storage: {exc}",
+        ) from exc
+
+    byte_stream = ByteStream(data=content, mime_type=mime_type)
+    try:
+        indexing_pipeline.run(
+            data={
+                "converter": {
+                    "sources": [byte_stream],
+                    "meta": {
+                        "business_id": business_id,
+                        "file_path": file_path,
+                    },
+                },
+            }
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to index document: {exc}",
+        ) from exc
+
+
+async def _process_deletion(business_id: str, file_path: str) -> Dict[str, str]:
+    """
+    Helper function to delete file from S3 and document store.
+    Used by both delete and update endpoints.
+    """
+    try:
+        s3_storage.delete_file(bucket=business_id, obj=file_path)
+    except FileNotFoundError:
+        # TODO: If the file is already missing from storage, we should still attempt to delete any documents that reference it.
+        return {"message": f"Document '{file_path}' does not exist."}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document from object storage: {exc}",
+        ) from exc
+
+    filters = {
+        "operator": "AND",
+        "conditions": [
+            {
+                "field": "meta.business_id",
+                "operator": "==",
+                "value": business_id,
+            },
+            {
+                "field": "meta.file_path",
+                "operator": "==",
+                "value": file_path,
+            },
+        ],
+    }
+
+    try:
+        documents = document_store.filter_documents(filters=filters)
+        ids = [document.id for document in documents]
+        if ids:
+            document_store.delete_documents(document_ids=ids)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document from document store: {exc}",
+        ) from exc
+
+    return {"message": f"Document '{file_path}' deleted successfully."}
+
+
 # TODO: Handle duplicate uploads
 @router.post(
     "/upload",
@@ -114,43 +203,12 @@ async def upload_file(
         )
 
     file_content = await file.read()
-    try:
-        s3_storage.upload_file(
-            bucket=current_business.business_id,
-            obj=file.filename,
-            data=file_content,
-            content_type=file.content_type,
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload document to object storage: {exc}",
-        ) from exc
-
-    byte_stream = ByteStream(
-        data=file_content,
+    await _process_upload(
+        business_id=current_business.business_id,
+        file_path=file.filename,
+        content=file_content,
         mime_type=file.content_type,
     )
-
-    try:
-        _ = indexing_pipeline.run(
-            data={
-                "converter": {
-                    "sources": [
-                        byte_stream,
-                    ],
-                    "meta": {
-                        "business_id": current_business.business_id,
-                        "file_path": file.filename,
-                    },
-                },
-            }
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload document: {exc}",
-        ) from exc
 
     return UploadResponse(
         message="Document uploaded successfully.",
@@ -182,50 +240,81 @@ async def delete_file(
             detail="File name must be provided.",
         )
 
-    # 1. Delete from S3 storage
+    message = await _process_deletion(
+        business_id=current_business.business_id,
+        file_path=file_path,
+    )
+
+    return message
+
+
+@router.get("/files/{file_path:path}", response_model=FileContentResponse)
+async def get_file_content(
+    file_path: str,
+    current_business: Business = Depends(get_current_business),
+) -> FileContentResponse:
     try:
-        s3_storage.delete_file(bucket=current_business.business_id, obj=file_path)
+        content_bytes = s3_storage.get_file(
+            bucket=current_business.business_id, obj=file_path
+        )
+        # We assume UTF-8 for editable files (txt, md)
+        content = content_bytes.decode("utf-8")
+        return FileContentResponse(content=content, file_path=file_path)
     except FileNotFoundError:
-        # TODO: We should still check the document store and delete any documents that reference this file,
-        # even if the file itself is missing from storage.
-        # Otherwise we could end up with orphaned documents that can never be deleted.
-        return {"message": f"Document '{file_path}' does not exist."}
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{file_path}' not found.",
+        )
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File '{file_path}' could not be decoded as UTF-8.",
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete document: {exc}",
+            detail=f"Failed to retrieve file: {exc}",
         ) from exc
 
-    # 2. Delete from document store
-    filters = {
-        "operator": "AND",
-        "conditions": [
-            {
-                "field": "meta.business_id",
-                "operator": "==",
-                "value": current_business.business_id,
-            },
-            {
-                "field": "meta.file_path",
-                "operator": "==",
-                "value": file_path,
-            },
-        ],
-    }
 
-    try:
-        documents = document_store.filter_documents(filters=filters)
-        ids = [document.id for document in documents]
-
-        if ids:
-            document_store.delete_documents(document_ids=ids)
-    except Exception as exc:
+@router.put("/files/{file_path:path}")
+async def update_file_content(
+    file_path: str,
+    request: FileUpdateRequest,
+    current_business: Business = Depends(get_current_business),
+) -> Dict[str, str]:
+    ext = Path(file_path).suffix.lower()
+    if ext not in [".txt", ".md"]:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete document from document store: {exc}",
-        ) from exc
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .txt and .md files can be modified.",
+        )
 
-    return {"message": f"Document '{file_path}' deleted successfully."}
+    content_bytes = request.content.encode("utf-8")
+    mime_type = "text/plain" if ext == ".txt" else "text/markdown"
+
+    # TODO: Should we allow the creation of new files if a file doesn't exist?
+    # Since the GET operation only checks this
+    # temp workaround
+    if file_path not in s3_storage.list_files(bucket=current_business.business_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{file_path}' not found. Only existing files can be updated.",
+        )
+
+    await _process_deletion(
+        business_id=current_business.business_id,
+        file_path=file_path,
+    )
+
+    await _process_upload(
+        business_id=current_business.business_id,
+        file_path=file_path,
+        content=content_bytes,
+        mime_type=mime_type,
+    )
+
+    return {"message": f"File '{file_path}' updated and re-indexed successfully."}
 
 
 @router.post("/query", response_model=QueryResponse)

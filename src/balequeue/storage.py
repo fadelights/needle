@@ -61,6 +61,18 @@ class S3Storage:
 
         self.client.delete_object(Bucket=bucket, Key=obj)
 
+    def get_file(self, bucket: str, obj: str) -> bytes:
+        """Get a file from an S3 bucket."""
+        try:
+            response = self.client.get_object(Bucket=bucket, Key=obj)
+            return response["Body"].read()
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "NoSuchKey":
+                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
+            else:
+                raise
+
 ES_MAPPING = {
     "dynamic": "strict",
     "properties": {

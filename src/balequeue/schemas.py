@@ -39,3 +39,12 @@ class BusinessOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class FileContentResponse(BaseModel):
+    content: str
+    file_path: str
+
+
+class FileUpdateRequest(BaseModel):
+    content: str
