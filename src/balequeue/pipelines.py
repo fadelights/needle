@@ -9,7 +9,12 @@ from haystack_integrations.components.retrievers.elasticsearch import (
 
 from .config import settings
 from .storage import document_store
-from .utils import _get_document_embedder, _get_generator, _get_text_embedder
+from .utils import (
+    NewlineNormalizer,
+    _get_document_embedder,
+    _get_generator,
+    _get_text_embedder,
+)
 
 
 class IndexingPipeline(Pipeline):
@@ -17,7 +22,10 @@ class IndexingPipeline(Pipeline):
 
     def __init__(self):
         super().__init__()
-        self.add_component("converter", MultiFileConverter())  # TODO: Handle "unclassified" files
+        self.add_component(
+            "converter", MultiFileConverter()
+        )  # TODO: Handle "unclassified" files
+        self.add_component("normalizer", NewlineNormalizer())
         self.add_component(
             "preprocessor",
             DocumentPreprocessor(
@@ -29,7 +37,8 @@ class IndexingPipeline(Pipeline):
         self.add_component("embedder", _get_document_embedder())
         self.add_component("writer", DocumentWriter(document_store=document_store))
 
-        self.connect("converter", "preprocessor")
+        self.connect("converter", "normalizer")
+        self.connect("normalizer", "preprocessor")
         self.connect("preprocessor", "embedder")
         self.connect("embedder", "writer")
 
