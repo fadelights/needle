@@ -2,16 +2,19 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from gradio.routes import mount_gradio_app
 
 from balequeue.api import router
 from balequeue.config import settings
-from balequeue.ui import client
+from balequeue.database import Base, engine
+from balequeue.models import (
+    Business,
+)  # noqa: F401 - This import is used for Base.metadata.create_all
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    Base.metadata.create_all(bind=engine)
     yield
     # Shutdown
     pass
@@ -20,7 +23,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Balequeue QA Service",
     description="Intelligent business QA powered by Haystack.",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 
@@ -33,7 +36,6 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
-app = mount_gradio_app(app, client, path="/client")
 
 
 @app.get("/")

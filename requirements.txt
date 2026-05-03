@@ -1,14 +1,16 @@
 accelerate
+bcrypt
 elasticsearch-haystack
 elasticsearch>=8.0.0,<9.0.0
 fastapi
-gradio>=6.13.0
 haystack-ai>=2.0,<3.0
 kernels
 nltk>=3.9.0
 pydantic
 pydantic-settings
+python-jose[cryptography]
 python-multipart
 sentence-transformers
+sqlalchemy
 transformers
 uvicorn

@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class UploadResponse(BaseModel):
@@ -16,10 +16,26 @@ class SourceChunk(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
-    business_id: str
     top_k: Optional[int] = None
 
 
 class QueryResponse(BaseModel):
     answer: str
     source_chunks: List[SourceChunk]
+
+
+class BusinessCreate(BaseModel):
+    name: str
+    password: str
+
+
+class BusinessOut(BaseModel):
+    name: str
+    business_id: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

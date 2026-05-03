@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     es_port: int = Field(9200, env="ES_PORT")
     es_index: str = Field("documents", env="ES_INDEX")
 
+    auth_db_url: str = Field("sqlite:///./data/balequeue.db", env="AUTH_DATABASE_URL")
+    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
+    auth_algorithm: str = Field("HS256", env="AUTH_ALGORITHM")
+    access_token_expire_minutes: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+
     openai_api_key: str = Field("", env="OPENAI_API_KEY")
     hf_api_token: str = Field("", env="HF_API_TOKEN")
 
@@ -26,9 +31,7 @@ class Settings(BaseSettings):
 
     balequeue_port: int = Field(8000, env="BALEQUEUE_PORT")
 
-    model_config = ConfigDict(
-        env_file=".env", env_file_encoding="utf-8"
-    )
+    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
 @lru_cache()
