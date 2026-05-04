@@ -1,3 +1,4 @@
+# TODO: Add healthcheck to services
 services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.3.3
@@ -13,5 +14,20 @@ services:
       - esdata:/usr/share/elasticsearch/data
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z-cpuv1
+    container_name: bq-minio
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_HOST}:${MINIO_PORT}:9000"
+      - "${MINIO_HOST}:${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - miniodata:/data
+    command: server /data --address ":9000" --console-address ":9001"
+    restart: unless-stopped
+
 volumes:
   esdata:
+  miniodata:

@@ -1,3 +1,6 @@
+from typing import List
+
+from haystack import Document, component
 from haystack.components.embedders import (
     OpenAIDocumentEmbedder,
     OpenAITextEmbedder,
@@ -8,6 +11,19 @@ from haystack.components.generators import HuggingFaceLocalGenerator, OpenAIGene
 from haystack.utils import ComponentDevice, Secret
 
 from .config import settings
+
+
+@component
+class NewlineNormalizer:
+    """Preprocessor component that normalizes newlines
+    to `\\n` in document content."""
+
+    @component.output_types(documents=List[Document])
+    def run(self, documents: List[Document]) -> List[Document]:
+        for document in documents:
+            if document.content:
+                document.content = document.content.replace("\r\n", "\n")
+        return {"documents": documents}
 
 
 def _get_device():

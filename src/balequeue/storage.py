@@ -1,8 +1,77 @@
+from typing import List
+
+import boto3
+from botocore.exceptions import ClientError
 from haystack_integrations.document_stores.elasticsearch import (
     ElasticsearchDocumentStore,
 )
 
 from .config import settings
+
+
+class S3Storage:
+    """S3-compatible storage class for MinIO."""
+
+    def __init__(self):
+        self.client = boto3.client(
+            "s3",
+            endpoint_url=f"http://{settings.minio_host}:{settings.minio_port}",
+            aws_access_key_id=settings.minio_root_user,
+            aws_secret_access_key=settings.minio_root_password,
+            use_ssl=settings.minio_secure,
+        )
+
+    def _create_bucket_if_not_exists(self, bucket: str):
+        try:
+            self.client.head_bucket(Bucket=bucket)
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "404":
+                # The bucket does not exist, so create it
+                self.client.create_bucket(Bucket=bucket)
+            else:
+                raise
+
+    def upload_file(self, bucket: str, obj: str, data: bytes, content_type: str):
+        """Upload a file to an S3 bucket."""
+        self._create_bucket_if_not_exists(bucket)
+        self.client.put_object(
+            Bucket=bucket,
+            Key=obj,
+            Body=data,
+            ContentType=content_type,
+        )
+
+    def list_files(self, bucket: str) -> List[str]:
+        """List all files in an S3 bucket."""
+        self._create_bucket_if_not_exists(bucket)
+        response = self.client.list_objects_v2(Bucket=bucket)
+        return [item["Key"] for item in response.get("Contents", [])]
+
+    def delete_file(self, bucket: str, obj: str):
+        """Delete a file from an S3 bucket."""
+        try:
+            self.client.head_object(Bucket=bucket, Key=obj)
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "404":
+                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
+            else:
+                raise
+
+        self.client.delete_object(Bucket=bucket, Key=obj)
+
+    def get_file(self, bucket: str, obj: str) -> bytes:
+        """Get a file from an S3 bucket."""
+        try:
+            response = self.client.get_object(Bucket=bucket, Key=obj)
+            return response["Body"].read()
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "NoSuchKey":
+                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
+            else:
+                raise
 
 ES_MAPPING = {
     "dynamic": "strict",
@@ -38,3 +107,5 @@ document_store = ElasticsearchDocumentStore(
     custom_mapping=ES_MAPPING,
     index=settings.es_index,
 )
+
+s3_storage = S3Storage()

@@ -1,9 +1,10 @@
-import tempfile
 from datetime import timedelta
 from pathlib import Path
+from typing import Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
+from haystack.dataclasses import ByteStream
 from sqlalchemy.orm import Session
 
 from .auth import (
@@ -19,16 +20,29 @@ from .pipelines import IndexingPipeline, QueryPipeline
 from .schemas import (
     BusinessCreate,
     BusinessOut,
+    FileContentResponse,
+    FileUpdateRequest,
     QueryRequest,
     QueryResponse,
     SourceChunk,
     Token,
     UploadResponse,
 )
+from .storage import document_store, s3_storage
 
 router = APIRouter()
 
-SUPPORTED_MIME_TYPES = {"text/plain"}
+SUPPORTED_MIME_TYPES = {
+    "application/json",
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # PPTX
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # XLSX
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # DOCX
+    "text/csv",
+    "text/html",
+    "text/markdown",
+    "text/plain",
+}
 
 # TODO: Are pipelines thread-safe?
 # If not, we may need to create new instances per request or use locks.
@@ -66,9 +80,7 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
 ) -> Token:
     business = db.query(Business).filter(Business.name == form_data.username).first()
-    if not business or not verify_passwd(
-        form_data.password, business.hashed_password
-    ):
+    if not business or not verify_passwd(form_data.password, business.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -81,8 +93,108 @@ async def login_for_access_token(
     return Token(access_token=access_token, token_type="bearer")
 
 
+async def _process_upload(
+    business_id: str, file_path: str, content: bytes, mime_type: str
+) -> None:
+    """
+    Helper function to upload file to S3 and run the indexing pipeline.
+    Used by both upload and update endpoints.
+    """
+    try:
+        s3_storage.upload_file(
+            bucket=business_id,
+            obj=file_path,
+            data=content,
+            content_type=mime_type,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to upload document to object storage: {exc}",
+        ) from exc
+
+    byte_stream = ByteStream(data=content, mime_type=mime_type)
+    try:
+        indexing_pipeline.run(
+            data={
+                "converter": {
+                    "sources": [byte_stream],
+                    "meta": {
+                        "business_id": business_id,
+                        "file_path": file_path,
+                    },
+                },
+            }
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to index document: {exc}",
+        ) from exc
+
+
+async def _process_deletion(business_id: str, file_path: str) -> Dict[str, str]:
+    """
+    Helper function to delete file from S3 and document store.
+    Used by both delete and update endpoints.
+    """
+    try:
+        s3_storage.delete_file(bucket=business_id, obj=file_path)
+    except FileNotFoundError:
+        # TODO: If the file is already missing from storage, we should still attempt to delete any documents that reference it.
+        return {"message": f"Document '{file_path}' does not exist."}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document from object storage: {exc}",
+        ) from exc
+
+    filters = {
+        "operator": "AND",
+        "conditions": [
+            {
+                "field": "meta.business_id",
+                "operator": "==",
+                "value": business_id,
+            },
+            {
+                "field": "meta.file_path",
+                "operator": "==",
+                "value": file_path,
+            },
+        ],
+    }
+
+    try:
+        documents = document_store.filter_documents(filters=filters)
+        ids = [document.id for document in documents]
+        if ids:
+            document_store.delete_documents(document_ids=ids)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document from document store: {exc}",
+        ) from exc
+
+    return {"message": f"Document '{file_path}' deleted successfully."}
+
+
+@router.get("/files", response_model=List[str])
+async def list_files(
+    current_business: Business = Depends(get_current_business),
+) -> List[str]:
+    try:
+        return s3_storage.list_files(bucket=current_business.business_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {exc}",
+        ) from exc
+
+
+# TODO: Handle duplicate uploads
 @router.post(
-    "/upload",
+    "/files",
     response_model=UploadResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -102,35 +214,98 @@ async def upload_file(
             detail=f"Unsupported file type '{file.content_type}'. Accepted: {SUPPORTED_MIME_TYPES}",
         )
 
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=Path(file.filename).suffix
-    ) as temp_file:
-        temp_file.write(await file.read())
-        temp_path = temp_file.name
-
-    try:
-        _ = indexing_pipeline.run(
-            data={
-                "converter": {
-                    "sources": [temp_path],
-                    "meta": {
-                        "business_id": current_business.business_id,
-                    },
-                },
-            }
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload document: {exc}",
-        ) from exc
-    finally:
-        Path(temp_path).unlink(missing_ok=True)
+    file_content = await file.read()
+    await _process_upload(
+        business_id=current_business.business_id,
+        file_path=file.filename,
+        content=file_content,
+        mime_type=file.content_type,
+    )
 
     return UploadResponse(
         message="Document uploaded successfully.",
         business_id=current_business.business_id,
     )
+
+
+@router.get("/files/{file_path:path}", response_model=FileContentResponse)
+async def get_file_content(
+    file_path: str,
+    current_business: Business = Depends(get_current_business),
+) -> FileContentResponse:
+    try:
+        content_bytes = s3_storage.get_file(
+            bucket=current_business.business_id, obj=file_path
+        )
+        # We assume UTF-8 for editable files (txt, md)
+        content = content_bytes.decode("utf-8")
+        return FileContentResponse(content=content, file_path=file_path)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{file_path}' not found.",
+        )
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File '{file_path}' could not be decoded as UTF-8.",
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to retrieve file: {exc}",
+        ) from exc
+
+
+@router.delete("/files/{file_path:path}")
+async def delete_file(
+    file_path: str,
+    current_business: Business = Depends(get_current_business),
+) -> Dict[str, str]:
+    return await _process_deletion(
+        business_id=current_business.business_id,
+        file_path=file_path,
+    )
+
+
+@router.put("/files/{file_path:path}")
+async def update_file_content(
+    file_path: str,
+    request: FileUpdateRequest,
+    current_business: Business = Depends(get_current_business),
+) -> Dict[str, str]:
+    ext = Path(file_path).suffix.lower()
+    if ext not in [".txt", ".md"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .txt and .md files can be modified.",
+        )
+
+    content_bytes = request.content.encode("utf-8")
+    mime_type = "text/plain" if ext == ".txt" else "text/markdown"
+
+    # TODO: Should we allow the creation of new files if a file doesn't exist?
+    # Since the GET operation only checks this
+    # temp workaround
+    if file_path not in s3_storage.list_files(bucket=current_business.business_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"File '{file_path}' not found. Only existing files can be updated.",
+        )
+
+    await _process_deletion(
+        business_id=current_business.business_id,
+        file_path=file_path,
+    )
+
+    await _process_upload(
+        business_id=current_business.business_id,
+        file_path=file_path,
+        content=content_bytes,
+        mime_type=mime_type,
+    )
+
+    return {"message": f"File '{file_path}' updated and re-indexed successfully."}
 
 
 @router.post("/query", response_model=QueryResponse)
