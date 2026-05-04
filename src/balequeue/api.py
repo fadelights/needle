@@ -1,4 +1,3 @@
-import tempfile
 from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List
@@ -96,7 +95,7 @@ async def login_for_access_token(
 
 async def _process_upload(
     business_id: str, file_path: str, content: bytes, mime_type: str
-):
+) -> None:
     """
     Helper function to upload file to S3 and run the indexing pipeline.
     Used by both upload and update endpoints.
@@ -180,9 +179,22 @@ async def _process_deletion(business_id: str, file_path: str) -> Dict[str, str]:
     return {"message": f"Document '{file_path}' deleted successfully."}
 
 
+@router.get("/files", response_model=List[str])
+async def list_files(
+    current_business: Business = Depends(get_current_business),
+) -> List[str]:
+    try:
+        return s3_storage.list_files(bucket=current_business.business_id)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {exc}",
+        ) from exc
+
+
 # TODO: Handle duplicate uploads
 @router.post(
-    "/upload",
+    "/files",
     response_model=UploadResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -216,38 +228,6 @@ async def upload_file(
     )
 
 
-@router.get("/list", response_model=List[str])
-async def list_files(
-    current_business: Business = Depends(get_current_business),
-) -> List[str]:
-    try:
-        return s3_storage.list_files(bucket=current_business.business_id)
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list documents: {exc}",
-        ) from exc
-
-
-@router.delete("/delete")
-async def delete_file(
-    file_path: str,
-    current_business: Business = Depends(get_current_business),
-) -> Dict[str, str]:
-    if not file_path:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File name must be provided.",
-        )
-
-    message = await _process_deletion(
-        business_id=current_business.business_id,
-        file_path=file_path,
-    )
-
-    return message
-
-
 @router.get("/files/{file_path:path}", response_model=FileContentResponse)
 async def get_file_content(
     file_path: str,
@@ -275,6 +255,17 @@ async def get_file_content(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to retrieve file: {exc}",
         ) from exc
+
+
+@router.delete("/files/{file_path:path}")
+async def delete_file(
+    file_path: str,
+    current_business: Business = Depends(get_current_business),
+) -> Dict[str, str]:
+    return await _process_deletion(
+        business_id=current_business.business_id,
+        file_path=file_path,
+    )
 
 
 @router.put("/files/{file_path:path}")
