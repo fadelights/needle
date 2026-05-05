@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 
 import boto3
 from botocore.exceptions import ClientError
@@ -10,15 +10,21 @@ from .config import settings
 
 
 class S3Storage:
-    """S3-compatible storage class for MinIO."""
+    """S3-compatible storage class with basic file operations."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        endpoint_url: str = None,
+        access_key: str = None,
+        secret_key: str = None,
+        use_ssl: bool = None,
+    ):
         self.client = boto3.client(
             "s3",
-            endpoint_url=f"http://{settings.minio_host}:{settings.minio_port}",
-            aws_access_key_id=settings.minio_root_user,
-            aws_secret_access_key=settings.minio_root_password,
-            use_ssl=settings.minio_secure,
+            endpoint_url=endpoint_url,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            use_ssl=use_ssl,
         )
 
     def _create_bucket_if_not_exists(self, bucket: str):
@@ -32,7 +38,14 @@ class S3Storage:
             else:
                 raise
 
-    def upload_file(self, bucket: str, obj: str, data: bytes, content_type: str):
+    def upload_file(
+        self,
+        bucket: str,
+        obj: str,
+        data: bytes,
+        content_type: str,
+        metadata: dict[str, str] = None,
+    ):
         """Upload a file to an S3 bucket."""
         self._create_bucket_if_not_exists(bucket)
         self.client.put_object(
@@ -40,13 +53,31 @@ class S3Storage:
             Key=obj,
             Body=data,
             ContentType=content_type,
+            Metadata=metadata,
         )
 
-    def list_files(self, bucket: str) -> List[str]:
+    def list_files(self, bucket: str) -> List[Dict[str, Any]]:
         """List all files in an S3 bucket."""
         self._create_bucket_if_not_exists(bucket)
         response = self.client.list_objects_v2(Bucket=bucket)
-        return [item["Key"] for item in response.get("Contents", [])]
+
+        # Native metadata retrieval isn't supported by list_objects_v2,
+        # so we need to call head_object for each file
+        files = []
+        for item in response.get("Contents", []):
+            key = item["Key"]
+            head = self.client.head_object(Bucket=bucket, Key=key)
+            files.append(
+                {
+                    "key": key,
+                    "size": item["Size"],
+                    "last_modified": item["LastModified"],
+                    "content_type": head["ContentType"],
+                    "metadata": head.get("Metadata", {}),
+                }
+            )
+
+        return files
 
     def delete_file(self, bucket: str, obj: str):
         """Delete a file from an S3 bucket."""
@@ -55,7 +86,9 @@ class S3Storage:
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             if error_code == "404":
-                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
+                raise FileNotFoundError(
+                    f"File '{obj}' does not exist in bucket '{bucket}'."
+                )
             else:
                 raise
 
@@ -69,9 +102,12 @@ class S3Storage:
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             if error_code == "NoSuchKey":
-                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
+                raise FileNotFoundError(
+                    f"File '{obj}' does not exist in bucket '{bucket}'."
+                )
             else:
                 raise
+
 
 ES_MAPPING = {
     "dynamic": "strict",
@@ -108,4 +144,9 @@ document_store = ElasticsearchDocumentStore(
     index=settings.es_index,
 )
 
-s3_storage = S3Storage()
+s3_storage = S3Storage(
+    endpoint_url=f"http://{settings.minio_host}:{settings.minio_port}",
+    access_key=settings.minio_root_user,
+    secret_key=settings.minio_root_password,
+    use_ssl=settings.minio_secure,
+)
