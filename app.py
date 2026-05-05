@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Balequeue QA Service",
     description="Intelligent business QA powered by Haystack.",
-    version="0.2.0",
+    version="0.2.1",
     lifespan=lifespan,
 )
 

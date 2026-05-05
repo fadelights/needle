@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Dict, List
@@ -94,18 +95,26 @@ async def login_for_access_token(
 
 
 async def _process_upload(
-    business_id: str, file_path: str, content: bytes, mime_type: str
+    business_id: str,
+    original_path: str,
+    content: bytes,
+    mime_type: str,
+    storage_path: str = None,
 ) -> None:
     """
     Helper function to upload file to S3 and run the indexing pipeline.
     Used by both upload and update endpoints.
     """
+    file_extension = Path(original_path).suffix.lower()
+    storage_path = storage_path if storage_path else f"{uuid.uuid4()}{file_extension}"
+
     try:
         s3_storage.upload_file(
             bucket=business_id,
-            obj=file_path,
+            obj=storage_path,
             data=content,
             content_type=mime_type,
+            metadata={"Original-Path": original_path},
         )
     except Exception as exc:
         raise HTTPException(
@@ -121,7 +130,7 @@ async def _process_upload(
                     "sources": [byte_stream],
                     "meta": {
                         "business_id": business_id,
-                        "file_path": file_path,
+                        "file_path": storage_path,
                     },
                 },
             }
@@ -133,16 +142,16 @@ async def _process_upload(
         ) from exc
 
 
-async def _process_deletion(business_id: str, file_path: str) -> Dict[str, str]:
+async def _process_deletion(business_id: str, storage_path: str) -> Dict[str, str]:
     """
     Helper function to delete file from S3 and document store.
     Used by both delete and update endpoints.
     """
     try:
-        s3_storage.delete_file(bucket=business_id, obj=file_path)
+        s3_storage.delete_file(bucket=business_id, obj=storage_path)
     except FileNotFoundError:
         # TODO: If the file is already missing from storage, we should still attempt to delete any documents that reference it.
-        return {"message": f"Document '{file_path}' does not exist."}
+        return {"message": f"Document '{storage_path}' does not exist."}
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -160,7 +169,7 @@ async def _process_deletion(business_id: str, file_path: str) -> Dict[str, str]:
             {
                 "field": "meta.file_path",
                 "operator": "==",
-                "value": file_path,
+                "value": storage_path,
             },
         ],
     }
@@ -176,13 +185,13 @@ async def _process_deletion(business_id: str, file_path: str) -> Dict[str, str]:
             detail=f"Failed to delete document from document store: {exc}",
         ) from exc
 
-    return {"message": f"Document '{file_path}' deleted successfully."}
+    return {"message": f"Document '{storage_path}' deleted successfully."}
 
 
-@router.get("/files", response_model=List[str])
+@router.get("/files", response_model=List[Dict])
 async def list_files(
     current_business: Business = Depends(get_current_business),
-) -> List[str]:
+) -> List[Dict]:
     try:
         return s3_storage.list_files(bucket=current_business.business_id)
     except Exception as exc:
@@ -217,7 +226,7 @@ async def upload_file(
     file_content = await file.read()
     await _process_upload(
         business_id=current_business.business_id,
-        file_path=file.filename,
+        original_path=file.filename,
         content=file_content,
         mime_type=file.content_type,
     )
@@ -228,27 +237,27 @@ async def upload_file(
     )
 
 
-@router.get("/files/{file_path:path}", response_model=FileContentResponse)
+@router.get("/files/{storage_path:path}", response_model=FileContentResponse)
 async def get_file_content(
-    file_path: str,
+    storage_path: str,
     current_business: Business = Depends(get_current_business),
 ) -> FileContentResponse:
     try:
         content_bytes = s3_storage.get_file(
-            bucket=current_business.business_id, obj=file_path
+            bucket=current_business.business_id, obj=storage_path
         )
         # We assume UTF-8 for editable files (txt, md)
         content = content_bytes.decode("utf-8")
-        return FileContentResponse(content=content, file_path=file_path)
+        return FileContentResponse(content=content, storage_path=storage_path)
     except FileNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File '{file_path}' not found.",
+            detail=f"File '{storage_path}' not found.",
         )
     except UnicodeDecodeError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File '{file_path}' could not be decoded as UTF-8.",
+            detail=f"File '{storage_path}' could not be decoded as UTF-8.",
         )
     except Exception as exc:
         raise HTTPException(
@@ -257,55 +266,69 @@ async def get_file_content(
         ) from exc
 
 
-@router.delete("/files/{file_path:path}")
+@router.delete("/files/{storage_path:path}")
 async def delete_file(
-    file_path: str,
+    storage_path: str,
     current_business: Business = Depends(get_current_business),
 ) -> Dict[str, str]:
     return await _process_deletion(
         business_id=current_business.business_id,
-        file_path=file_path,
+        storage_path=storage_path,
     )
 
 
-@router.put("/files/{file_path:path}")
+@router.put("/files/{storage_path:path}")
 async def update_file_content(
-    file_path: str,
+    storage_path: str,
     request: FileUpdateRequest,
     current_business: Business = Depends(get_current_business),
 ) -> Dict[str, str]:
-    ext = Path(file_path).suffix.lower()
-    if ext not in [".txt", ".md"]:
+    extension = Path(storage_path).suffix.lower()
+    allowed = [".txt", ".md"]
+    if extension not in allowed:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only .txt and .md files can be modified.",
+            detail=f"Only {', '.join(allowed)} files can be modified.",
         )
 
     content_bytes = request.content.encode("utf-8")
-    mime_type = "text/plain" if ext == ".txt" else "text/markdown"
+    mime_mapping = {".txt": "text/plain", ".md": "text/markdown"}
+    mime_type = mime_mapping.get(extension, "text/plain")
 
     # TODO: Should we allow the creation of new files if a file doesn't exist?
     # Since the GET operation only checks this
     # temp workaround
-    if file_path not in s3_storage.list_files(bucket=current_business.business_id):
+    existing = next(
+        (
+            (file["key"], file["metadata"]["Original-Path".lower()])
+            for file in s3_storage.list_files(bucket=current_business.business_id)
+            if file["key"] == storage_path
+        ),
+        None,
+    )
+
+    if not existing:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"File '{file_path}' not found. Only existing files can be updated.",
+            detail=f"File '{storage_path}' not found. Only existing files can be updated.",
         )
+
+    storage_path, original_path = existing
 
     await _process_deletion(
         business_id=current_business.business_id,
-        file_path=file_path,
+        storage_path=storage_path,
     )
 
     await _process_upload(
         business_id=current_business.business_id,
-        file_path=file_path,
+        original_path=original_path,
         content=content_bytes,
         mime_type=mime_type,
+        storage_path=storage_path,
     )
 
-    return {"message": f"File '{file_path}' updated and re-indexed successfully."}
+    return {"message": f"File '{storage_path}' updated and re-indexed successfully."}
 
 
 @router.post("/query", response_model=QueryResponse)
@@ -337,7 +360,7 @@ async def query_business(
             SourceChunk(
                 content=doc.content,
                 score=doc.score,
-                file_path=doc.meta["file_path"],
+                storage_path=doc.meta["file_path"],
             )
             for doc in documents
         ]
