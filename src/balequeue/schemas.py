@@ -11,7 +11,7 @@ class UploadResponse(BaseModel):
 class SourceChunk(BaseModel):
     content: str
     score: Optional[float] = None
-    file_path: Optional[str] = None
+    storage_path: Optional[str] = None
 
 
 class QueryRequest(BaseModel):
@@ -43,7 +43,7 @@ class Token(BaseModel):
 
 class FileContentResponse(BaseModel):
     content: str
-    file_path: str
+    storage_path: str
 
 
 class FileUpdateRequest(BaseModel):
