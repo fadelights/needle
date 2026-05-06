@@ -27,6 +27,7 @@ optional-dependencies.dev = {file = ["requirements-dev.txt"]}
 optional-dependencies.doc = {file = ["requirements-doc.txt"]}
 
 [tool.pytest.ini_options]
+pythonpath = "."
 testpaths = "tests"
 asyncio_mode = "auto"
 addopts = [

@@ -5,43 +5,47 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    environment: str = Field("development", env="ENVIRONMENT")
+    environment: str = Field("development")
 
-    es_scheme: str = Field("http", env="ES_SCHEME")
-    es_host: str = Field("localhost", env="ES_HOST")
-    es_port: int = Field(9200, env="ES_PORT")
-    es_index: str = Field("documents", env="ES_INDEX")
+    es_scheme: str = Field("http")
+    es_host: str = Field("localhost")
+    es_port: int = Field(9200)
+    es_index: str = Field("documents")
 
-    minio_root_user: str = Field(..., env="MINIO_ROOT_USER")
-    minio_root_password: str = Field(..., env="MINIO_ROOT_PASSWORD")
-    minio_secure: bool = Field(False, env="MINIO_SECURE")
-    minio_host: str = Field("localhost", env="MINIO_HOST")
-    minio_port: int = Field(9000, env="MINIO_PORT")
-    minio_console_port: int = Field(9001, env="MINIO_CONSOLE_PORT")
+    minio_root_user: str = Field(...)
+    minio_root_password: str = Field(...)
+    minio_secure: bool = Field(False)
+    minio_host: str = Field("localhost")
+    minio_port: int = Field(9000)
+    minio_console_port: int = Field(9001)
 
-    auth_database_url: str = Field("sqlite:///./data/balequeue.db", env="AUTH_DATABASE_URL")
-    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY")
-    auth_algorithm: str = Field("HS256", env="AUTH_ALGORITHM")
-    access_token_expire_minutes: int = Field(30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    auth_database_url: str = Field("sqlite:///./data/balequeue.db")
+    jwt_secret_key: str = Field(...)
+    auth_algorithm: str = Field("HS256")
+    access_token_expire_minutes: int = Field(30)
 
-    openai_api_key: str = Field("", env="OPENAI_API_KEY")
-    hf_api_token: str = Field("", env="HF_API_TOKEN")
+    openai_api_key: str = Field("")
+    hf_api_token: str = Field("")
 
-    embedding_provider: str = Field("openai", env="EMBEDDING_PROVIDER")
-    embedding_model: str = Field("text-embedding-3-small", env="EMBEDDING_MODEL")
-    embedding_dim: int = Field(1536, env="EMBEDDING_DIM")
+    embedding_provider: str = Field("openai")
+    embedding_model: str = Field("text-embedding-3-small")
+    embedding_dim: int = Field(1536)
 
-    generator_provider: str = Field("openai", env="GENERATOR_PROVIDER")
-    generator_model: str = Field("gpt-4o-mini", env="GENERATOR_MODEL")
-    max_new_tokens: int = Field(256, env="MAX_NEW_TOKENS")
+    generator_provider: str = Field("openai")
+    generator_model: str = Field("gpt-4o-mini")
+    max_new_tokens: int = Field(256)
 
-    chunk_size: int = Field(8, env="CHUNK_SIZE")
-    chunk_overlap: int = Field(2, env="CHUNK_OVERLAP")
-    top_k: int = Field(5, env="TOP_K")
+    chunk_size: int = Field(8)
+    chunk_overlap: int = Field(2)
+    top_k: int = Field(5)
 
-    balequeue_port: int = Field(8000, env="BALEQUEUE_PORT")
+    balequeue_port: int = Field(8000)
 
-    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        dotenv_filtering="only_existing"
+    )
 
 
 @lru_cache()
