@@ -3,7 +3,7 @@ requires = ["setuptools>=82.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "balequeue"
+name = "needle"
 version = "0.2.1"
 description = "Intelligent QA for businesses."
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ authors = [ { name = "Arman Rezaei", email = "mani@argoman.io" } ]
 dynamic = ["dependencies", "optional-dependencies"]
 
 [project.urls]
-Homepage = "https://git.argoman.io/mlops/balequeue"
+Homepage = "https://github.com/fadelights/needle"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

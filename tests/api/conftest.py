@@ -9,9 +9,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app import app
-from balequeue.auth import get_current_business, get_db, get_passwd_hash
-from balequeue.database import Base
-from balequeue.models import Business
+from needle.auth import get_current_business, get_db, get_passwd_hash
+from needle.database import Base
+from needle.models import Business
 
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
 
@@ -61,9 +61,9 @@ def client(db_session, test_business):
 
     # Patch storage and pipelines so tests never touch MinIO or Elasticsearch
     with (
-        patch("balequeue.api.s3_storage") as mock_storage,
-        patch("balequeue.api.indexing_pipeline") as mock_indexer,
-        patch("balequeue.api.query_pipeline") as mock_query,
+        patch("needle.api.s3_storage") as mock_storage,
+        patch("needle.api.indexing_pipeline") as mock_indexer,
+        patch("needle.api.query_pipeline") as mock_query,
     ):
         yield TestClient(app), mock_storage, mock_indexer, mock_query
 

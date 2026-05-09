@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     minio_port: int = Field(9000)
     minio_console_port: int = Field(9001)
 
-    auth_database_url: str = Field("sqlite:///./data/balequeue.db")
+    auth_database_url: str = Field("sqlite:///./data/needle.db")
     jwt_secret_key: str = Field(...)
     auth_algorithm: str = Field("HS256")
     access_token_expire_minutes: int = Field(30)
@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     chunk_overlap: int = Field(2)
     top_k: int = Field(5)
 
-    balequeue_port: int = Field(8000)
+    needle_port: int = Field(8000)
 
     model_config = ConfigDict(
         env_file=".env",

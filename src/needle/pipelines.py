@@ -11,9 +11,9 @@ from .config import settings
 from .storage import document_store
 from .utils import (
     NewlineNormalizer,
-    _get_document_embedder,
-    _get_generator,
-    _get_text_embedder,
+    get_document_embedder,
+    get_generator,
+    get_text_embedder,
 )
 
 
@@ -34,7 +34,7 @@ class IndexingPipeline(Pipeline):
                 split_overlap=settings.chunk_overlap,
             ),
         )
-        self.add_component("embedder", _get_document_embedder())
+        self.add_component("embedder", get_document_embedder())
         self.add_component("writer", DocumentWriter(document_store=document_store))
 
         self.connect("converter", "normalizer")
@@ -63,14 +63,14 @@ class QueryPipeline(Pipeline):
         Question: {{query}}
         Answer:
         """
-        self.add_component("embedder", _get_text_embedder())
+        self.add_component("embedder", get_text_embedder())
         self.add_component(
             "retriever", ElasticsearchEmbeddingRetriever(document_store=document_store)
         )
         self.add_component(
             "prompt_builder", PromptBuilder(template=template, required_variables="*")
         )
-        self.add_component("generator", _get_generator())
+        self.add_component("generator", get_generator())
 
         self.connect("embedder.embedding", "retriever.query_embedding")
         self.connect("retriever.documents", "prompt_builder.documents")
