@@ -46,5 +46,5 @@ async def root() -> dict[str, str]:
 if __name__ == "__main__":
     import uvicorn
 
-    # TODO: 0.0.0.0 is required for running in Docker
-    uvicorn.run(app, host="127.0.0.1", port=settings.needle_port)
+    # TODO: Apply security measures
+    uvicorn.run(app, host="0.0.0.0", port=settings.needle_port)
