@@ -1,6 +1,6 @@
 """Shared fixtures for testing."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -59,7 +59,7 @@ def client(db_session, test_business):
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_business] = override_get_current_business
 
-    # Patch storage and pipelines so tests never touch MinIO or Elasticsearch
+    # Patch storage and pipelines so tests never touch object or document stores
     with (
         patch("needle.api.s3_storage") as mock_storage,
         patch("needle.api.indexing_pipeline") as mock_indexer,
