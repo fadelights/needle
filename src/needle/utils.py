@@ -31,7 +31,7 @@ def _get_device():
     return ComponentDevice.resolve_device(device)
 
 
-def _get_document_embedder():
+def get_document_embedder():
     """Create document embedder based on provider setting."""
     if settings.embedding_provider.lower() == "huggingface":
         return SentenceTransformersDocumentEmbedder(
@@ -45,7 +45,7 @@ def _get_document_embedder():
         )
 
 
-def _get_text_embedder():
+def get_text_embedder():
     """Create text embedder based on provider setting."""
     if settings.embedding_provider.lower() == "huggingface":
         return SentenceTransformersTextEmbedder(
@@ -59,7 +59,7 @@ def _get_text_embedder():
         )
 
 
-def _get_generator():
+def get_generator():
     """Create generator based on provider setting."""
     if settings.generator_provider.lower() == "huggingface":
         return HuggingFaceLocalGenerator(
