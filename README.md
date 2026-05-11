@@ -15,5 +15,5 @@ To-Do:
 - [ ] Add pipeline unit tests
 - [ ] Async database and pipeline operations
 - [ ] Update README
-- [ ] Add Kibana to the project's docker-compose
+- [x] Add Kibana to the project's docker-compose
 - [ ] Spin up a UI using shadcn
