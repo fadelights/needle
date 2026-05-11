@@ -58,6 +58,11 @@ services:
       - miniodata:/data
     command: server /data --address ":9000" --console-address ":9001"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   esdata:
