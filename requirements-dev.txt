@@ -3,5 +3,6 @@ flake8
 isort
 jupyterlab
 locust
+moto[s3]
 pytest
 pytest-asyncio
