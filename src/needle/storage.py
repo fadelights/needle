@@ -44,7 +44,7 @@ class S3Storage:
         obj: str,
         data: bytes,
         content_type: str,
-        metadata: dict[str, str] = None,
+        metadata: Dict[str, str] = dict(),
     ):
         """Upload a file to an S3 bucket."""
         self._create_bucket_if_not_exists(bucket)

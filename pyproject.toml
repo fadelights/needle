@@ -29,6 +29,9 @@ optional-dependencies.doc = {file = ["requirements-doc.txt"]}
 [tool.pytest.ini_options]
 pythonpath = "."
 testpaths = "tests"
+markers = [
+    "integration",
+]
 asyncio_mode = "auto"
 addopts = [
     "--import-mode=importlib",
