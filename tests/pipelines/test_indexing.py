@@ -124,13 +124,58 @@ class TestIndexingPipeline:
             assert documents[0].meta["business_id"] == business_id
 
     def test_embeddings_are_set(self, indexing_pipeline, inmem_document_store):
-        pass
+        """Every document written to the store must have a non-None embedding."""
+        file_path = "super-semantic.txt"
+        _run_pipeline(indexing_pipeline, "Embed this!", file_path=file_path)
 
-    def test_long_document_is_split(self):
-        pass
+        documents = _filter_document(inmem_document_store, BUSINESS_ID, file_path)
+        assert documents, "No documents were written."
+        assert all(document.embedding is not None for document in documents)
 
-    def test_newlines_are_normalized(self):
-        pass
+    def test_long_document_is_split(self, indexing_pipeline, inmem_document_store):
+        """Documents longer than the chunk size must produce more than one chunk.
 
-    def test_multiple_files_are_isolated(self):
-        pass
+        The preprocessor is configured with split_by='sentence', so we feed
+        it enough sentences to guarantee at least one split regardless of the
+        configured chunk_size.
+        """
+        file_path = "long-doc.txt"
+        sentences = " ".join(f"This is sentence #{i}." for i in range(100))
+
+        _run_pipeline(indexing_pipeline, sentences, file_path=file_path)
+
+        documents = _filter_document(inmem_document_store, BUSINESS_ID, file_path)
+        assert (
+            len(documents) > 1
+        ), f"Expected multiple chunks for a 100-sentence document, got {len(documents)!r}"
+
+    def test_newlines_are_normalized(self, indexing_pipeline, inmem_document_store):
+        """NewlineNormalizer must collapse Windows-style CRLF to LF."""
+        file_path = "crlf-test.txt"
+        crlf_content = "\r\n".join(f"This is sentence #{i}" for i in range(10))
+
+        _run_pipeline(indexing_pipeline, crlf_content, file_path=file_path)
+
+        documents = _filter_document(inmem_document_store, BUSINESS_ID, file_path)
+        assert documents, "No documents were written."
+
+        for document in documents:
+            assert (
+                "\r" not in document.content
+            ), f"Carriage return found in stored content: {document.content!r}"
+
+    def test_multiple_files_are_isolated(self, indexing_pipeline, inmem_document_store):
+        """Documents from different file_paths must not bleed into each other."""
+        path_a = "isolation-a.txt"
+        path_b = "isolation-b.txt"
+
+        _run_pipeline(indexing_pipeline, f"Content belonging to {path_a}.", file_path=path_a)
+        _run_pipeline(indexing_pipeline, f"Content belonging to {path_b}.", file_path=path_b)
+
+        docs_a = _filter_document(inmem_document_store, BUSINESS_ID, path_a)
+        docs_b = _filter_document(inmem_document_store, BUSINESS_ID, path_b)
+
+        assert docs_a, f"No documents written for {path_a}."
+        assert docs_b, f"No documents written for {path_b}."
+        assert all(d.meta["file_path"] == path_a for d in docs_a)
+        assert all(d.meta["file_path"] == path_b for d in docs_b)
