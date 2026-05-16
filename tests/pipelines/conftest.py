@@ -4,11 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from haystack.dataclasses import Document
-from haystack_integrations.document_stores.elasticsearch import (
-    ElasticsearchDocumentStore,
-)
-
-from needle.config import settings
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -30,39 +25,6 @@ def make_documents(**kwargs) -> Document:
 
     defaults.update(kwargs)
     return Document(**kwargs)
-
-
-# ---------------------------------------------------------------------------
-# Elasticsearch document store
-# ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
-def es_document_store():
-    """
-    Real ElasticsearchDocumentStore pointed at the configured ES instance.
-
-    Expects ES to be reachable at the configured ENV host. If not, will
-    use whatever defaults set for the app. It will use a dummy index
-    for performing the tests.
-
-    The index is dropped after the session so tests stay idempotent.
-    """
-    index = "test"
-    from needle.storage import ES_MAPPING
-
-    store = ElasticsearchDocumentStore(
-        hosts=f"{settings.es_scheme}://{settings.es_host}:{settings.es_port}",
-        custom_mapping=ES_MAPPING,
-        index=index,
-    )
-
-    yield store
-
-    # Teardown
-    try:
-        if store._client is not None:
-            store._client.indices.delete(index=index, ignore_unavailable=True)
-    except Exception as exc:
-        raise Exception(f"ES teardown failed due to the following reason: {exc}")
 
 
 # ---------------------------------------------------------------------------
