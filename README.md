@@ -12,7 +12,8 @@ To-Do:
 - [x] PDF file support
 - [x] Add live-file capabilities
 - [x] Store object metadata
-- [ ] Add pipeline unit tests
+- [x] Add pipeline unit tests
+- [ ] Add CI/CD for testing
 - [ ] Async database and pipeline operations
 - [ ] Update README
 - [x] Add Kibana to the project's docker-compose

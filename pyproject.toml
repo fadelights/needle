@@ -36,3 +36,6 @@ asyncio_mode = "auto"
 addopts = [
     "--import-mode=importlib",
 ]
+
+[tool.black]
+line-length = 100

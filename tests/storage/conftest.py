@@ -1,13 +1,53 @@
-"""Shared fixtures for testing."""
+"""Shared fixtures for testing document and object stores."""
 
 import os
 
 import pytest
+from haystack_integrations.document_stores.elasticsearch import (
+    ElasticsearchDocumentStore,
+)
 from moto import mock_aws
 
+from needle.config import settings
 from needle.storage import S3Storage
 
 
+# ---------------------------------------------------------------------------
+# Elasticsearch document store
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="session")
+def es_document_store():
+    """
+    Real ElasticsearchDocumentStore pointed at the configured ES instance.
+
+    Expects ES to be reachable at the configured ENV host. If not, will
+    use whatever defaults set for the app. It will use a dummy index
+    for performing the tests.
+
+    The index is dropped after the session so tests stay idempotent.
+    """
+    index = "test"
+    from needle.storage import ES_MAPPING
+
+    store = ElasticsearchDocumentStore(
+        hosts=f"{settings.es_scheme}://{settings.es_host}:{settings.es_port}",
+        custom_mapping=ES_MAPPING,
+        index=index,
+    )
+
+    yield store
+
+    # Teardown
+    try:
+        if store._client is not None:
+            store._client.indices.delete(index=index, ignore_unavailable=True)
+    except Exception as exc:
+        raise Exception(f"ES teardown failed due to the following reason: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# S3 object storage
+# ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
 def aws_credentials():
     """Mocked AWS credentials for moto."""

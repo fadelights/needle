@@ -1,3 +1,4 @@
+import dataclasses
 from typing import List
 
 from haystack import Document, component
@@ -20,10 +21,16 @@ class NewlineNormalizer:
 
     @component.output_types(documents=List[Document])
     def run(self, documents: List[Document]) -> List[Document]:
-        for document in documents:
-            if document.content:
-                document.content = document.content.replace("\r\n", "\n")
-        return {"documents": documents}
+        return {
+            "documents": [
+                (
+                    dataclasses.replace(document, content=document.content.replace("\r\n", "\n"))
+                    if document.content
+                    else document
+                )
+                for document in documents
+            ]
+        }
 
 
 def _get_device():

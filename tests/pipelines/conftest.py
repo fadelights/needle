@@ -1,14 +1,12 @@
 """Shared fixtures for pipeline and document-store tests."""
 
+import dataclasses
+from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
+from haystack import component
 from haystack.dataclasses import Document
-from haystack_integrations.document_stores.elasticsearch import (
-    ElasticsearchDocumentStore,
-)
-
-from needle.config import settings
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -21,48 +19,33 @@ FILE_PATH   = "11111111-2222-3333-4444-555555555555.txt"
 # fmt: on
 
 
-def make_documents(**kwargs) -> Document:
-    """Return a document with sensible defaults for pipeline tests."""
-    defaults = dict(
-        content="The quick brown fox jumps over the lazy dog.",
-        meta={"bussiness_id": BUSINESS_ID, "file_path": FILE_PATH},
-    )
+@component
+class DummyDocumentEmbedder:
+    @component.output_types(documents=List[Document])
+    def run(self, documents: List):
+        return {
+            "documents": [
+                dataclasses.replace(doc, embedding=[0.1 * i] * 3) for i, doc in enumerate(documents)
+            ]
+        }
 
-    defaults.update(kwargs)
-    return Document(**kwargs)
+
+@component
+class DummyTextEmbedder:
+    @component.output_types(embedding=List[float])
+    def run(self, text: str):
+        return {"embedding": [0.1, 0.2, 0.3]}
 
 
-# ---------------------------------------------------------------------------
-# Elasticsearch document store
-# ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
-def es_document_store():
-    """
-    Real ElasticsearchDocumentStore pointed at the configured ES instance.
+@component
+class DummyGenerator:
+    def __init__(self):
+        self.last_prompt = None
 
-    Expects ES to be reachable at the configured ENV host. If not, will
-    use whatever defaults set for the app. It will use a dummy index
-    for performing the tests.
-
-    The index is dropped after the session so tests stay idempotent.
-    """
-    index = "test"
-    from needle.storage import ES_MAPPING
-
-    store = ElasticsearchDocumentStore(
-        hosts=f"{settings.es_scheme}://{settings.es_host}:{settings.es_port}",
-        custom_mapping=ES_MAPPING,
-        index=index,
-    )
-
-    yield store
-
-    # Teardown
-    try:
-        if store._client is not None:
-            store._client.indices.delete(index=index, ignore_unavailable=True)
-    except Exception as exc:
-        raise Exception(f"ES teardown failed due to the following reason: {exc}")
+    @component.output_types(replies=List[str])
+    def run(self, prompt: str):
+        self.last_prompt = prompt
+        return {"replies": ["This is a serious generated answer."]}
 
 
 # ---------------------------------------------------------------------------
@@ -102,50 +85,14 @@ def inmem_document_store():
 
 @pytest.fixture()
 def mock_document_embedder():
-    """
-    Uses a fake embedder that adds a dummy embedding to every document.
-    """
-
-    def _fake_run(documents):
-        for i, doc in enumerate(documents, start=1):
-            doc.embedding = [0.1 * i] * 3
-        return {"documents": documents}
-
-    embedder = MagicMock()
-    embedder.run.side_effect = _fake_run
-
-    # Haystack inspects these at pipeline connect-time
-    embedder.__haystack_input__ = {"documents": MagicMock()}
-    embedder.__haystack_output__ = {"documents": MagicMock()}
-
-    return embedder
+    return DummyDocumentEmbedder()
 
 
 @pytest.fixture()
 def mock_text_embedder():
-    """Fake text embedder that always returns the same query vector."""
-
-    def _fake_run(text):
-        return {"embedding": [0.1, 0.2, 0.3]}
-
-    embedder = MagicMock()
-    embedder.run.side_effect = _fake_run
-    embedder.__haystack_input__ = {"text": MagicMock()}
-    embedder.__haystack_output__ = {"embedding": MagicMock()}
-
-    return embedder
+    return DummyTextEmbedder()
 
 
 @pytest.fixture()
 def mock_generator():
-    """Fake LLM generator that echoes back a canned answer."""
-
-    def _fake_run(prompt):
-        return {"replies": ["This is a generated answer."]}
-
-    generator = MagicMock()
-    generator.run.side_effect = _fake_run
-    generator.__haystack_input__ = {"prompt": MagicMock()}
-    generator.__haystack_output__ = {"replies": MagicMock()}
-
-    return generator
+    return DummyGenerator()
