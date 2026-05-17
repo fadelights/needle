@@ -40,7 +40,7 @@ def _run_pipeline(
     the `text` input will be treated as a file.
     """
     if not issubclass(pipeline.__class__, Pipeline):
-        raise ValueError(f"{pipeline} is not a proper Haystack Pipeline.")
+        raise ValueError(f"{pipeline.__class__!r} is not a proper Haystack Pipeline.")
 
     pipeline.run(
         data={

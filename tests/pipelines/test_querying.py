@@ -20,7 +20,7 @@ def _run_pipeline(
 ):
     """Convenience wrapper to run the pipeline with a query."""
     if not issubclass(pipeline.__class__, Pipeline):
-        raise ValueError(f"{pipeline} is not a proper Haystack Pipeline.")
+        raise ValueError(f"{pipeline.__class__!r} is not a proper Haystack Pipeline.")
 
     return pipeline.run(
         data={
@@ -28,7 +28,7 @@ def _run_pipeline(
             "retriever": {
                 "filters": {
                     "field": "meta.business_id",
-                    "opertaor": "==",
+                    "operator": "==",
                     "value": business_id,
                 },
                 "top_k": top_k,
@@ -51,12 +51,12 @@ def query_pipeline(inmem_document_store, mock_text_embedder, mock_generator):
         patch("needle.pipelines.document_store", inmem_document_store),
         patch(
             "needle.pipelines.ElasticsearchEmbeddingRetriever",
-            lambda documnet_store: InMemoryEmbeddingRetriever(document_store=documnet_store),
+            lambda **kwargs: InMemoryEmbeddingRetriever(**kwargs),
         ),
     ):
         from needle.pipelines import QueryPipeline
 
-        yield QueryPipeline
+        yield QueryPipeline()
 
 
 # ---------------------------------------------------------------------------
@@ -64,22 +64,56 @@ def query_pipeline(inmem_document_store, mock_text_embedder, mock_generator):
 
 class TestQueryPipeline:
     def test_returns_answer(self, query_pipeline):
-        pass
+        result = _run_pipeline(query_pipeline, "What does ACME make?")
+        answer = result["generator"]["replies"][0]
+
+        assert isinstance(answer, str)
+        assert answer.strip()
 
     def test_returns_sources(self, query_pipeline):
-        pass
+        result = _run_pipeline(query_pipeline, "What does ACME make?")
+        documents = result["retriever"]["documents"]
+
+        assert isinstance(documents, list)
+        assert all(isinstance(d, Document) for d in documents)
 
     def test_top_k_limits_results(self, query_pipeline):
-        pass
+        result = _run_pipeline(query_pipeline, "What does ACME make?", top_k=1)
+
+        assert len(result["retriever"]["documents"]) <= 1
 
     def test_tenant_isolation(self, query_pipeline):
-        pass
+        result = _run_pipeline(query_pipeline, "What does ACME make?", business_id=BUSINESS_ID)
 
-    def test_tenant_sees_own_docs(self, query_pipeline):
-        pass
+        for doc in result["retriever"]["documents"]:
+            assert (
+                doc.meta.get("business_id") == BUSINESS_ID
+            ), f"Document leakage from another tenant: {doc.meta}"
 
-    def test_generator_prompt_contains_query(self, query_pipeline):
-        pass
+        result = _run_pipeline(query_pipeline, "Tell me something.", business_id=OTHER_ID)
 
-    def test_generator_prompt_contains_retrieved_docs(self, query_pipeline):
-        pass
+        for doc in result["retriever"]["documents"]:
+            assert (
+                doc.meta.get("business_id") == OTHER_ID
+            ), f"Document leakage from another tenant: {doc.meta}"
+
+    def test_generator_prompt_contains_query(self, query_pipeline, mock_generator):
+        query = "What are ACME's Rockets made of?"
+        _run_pipeline(query_pipeline, query)
+
+        assert query in mock_generator.last_prompt
+
+        # The prompt template injects document content before the question,
+        # so the prompt must be longer than the query alone.
+        assert len(mock_generator.last_prompt.strip()) > len(query)
+
+    def test_generator_prompt_contains_context(self, query_pipeline, mock_generator):
+        result = _run_pipeline(query_pipeline, "What does ACME make?")
+        documents = result["retriever"]["documents"]
+
+        assert documents, "No documents were retrieved."
+
+        for document in documents:
+            assert (
+                document.content in mock_generator.last_prompt
+            ), f"Document content not found in prompt: {document.content!r}"

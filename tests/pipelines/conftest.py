@@ -39,20 +39,13 @@ class DummyTextEmbedder:
 
 @component
 class DummyGenerator:
+    def __init__(self):
+        self.last_prompt = None
+
     @component.output_types(replies=List[str])
     def run(self, prompt: str):
+        self.last_prompt = prompt
         return {"replies": ["This is a serious generated answer."]}
-
-
-def make_documents(**kwargs) -> Document:
-    """Return a document with sensible defaults for pipeline tests."""
-    defaults = dict(
-        content="The quick brown fox jumps over the lazy dog.",
-        meta={"bussiness_id": BUSINESS_ID, "file_path": FILE_PATH},
-    )
-
-    defaults.update(kwargs)
-    return Document(**kwargs)
 
 
 # ---------------------------------------------------------------------------
