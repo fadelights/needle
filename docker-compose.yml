@@ -8,6 +8,7 @@ services:
       - xpack.security.enabled=false
       - xpack.license.self_generated.type=trial
       - http.port=9200
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
     ports:
       - "${ES_HOST}:${ES_PORT}:9200" # TODO: Currently served on localhost to prevent security issues. Add auth and serve on all interfaces in the future.
     volumes:
