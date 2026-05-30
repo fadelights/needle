@@ -2,9 +2,7 @@ from typing import Any, Dict, List
 
 import boto3
 from botocore.exceptions import ClientError
-from haystack_integrations.document_stores.elasticsearch import (
-    ElasticsearchDocumentStore,
-)
+from haystack_integrations.document_stores.elasticsearch import ElasticsearchDocumentStore
 
 from .config import settings
 
@@ -86,9 +84,7 @@ class S3Storage:
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             if error_code == "404":
-                raise FileNotFoundError(
-                    f"File '{obj}' does not exist in bucket '{bucket}'."
-                )
+                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
             else:
                 raise
 
@@ -102,9 +98,7 @@ class S3Storage:
         except ClientError as e:
             error_code = e.response["Error"]["Code"]
             if error_code == "NoSuchKey":
-                raise FileNotFoundError(
-                    f"File '{obj}' does not exist in bucket '{bucket}'."
-                )
+                raise FileNotFoundError(f"File '{obj}' does not exist in bucket '{bucket}'.")
             else:
                 raise
 
@@ -150,3 +144,44 @@ s3_storage = S3Storage(
     secret_key=settings.minio_root_password,
     use_ssl=settings.minio_secure,
 )
+
+
+def get_document_store() -> ElasticsearchDocumentStore:
+    """Return the module's `document_store` instance.
+
+    Kept as a function to make testing and future lazy-init easier.
+    """
+    return document_store
+
+
+def get_s3_storage() -> S3Storage:
+    """Return the module's `s3_storage` instance.
+
+    Kept as a function to make testing and future lazy-init easier.
+    """
+
+    return s3_storage
+
+
+# TODO: Implement timeout and retries
+def healthcheck(timeout: int = 5) -> Dict[str, bool]:
+    """Check connectivity to configured services (ES and S3).
+
+    Returns a dict with boolean statuses, does NOT raise on failure.
+    """
+    statuses: Dict[str, bool] = {"elasticsearch": False, "s3": False}
+
+    try:
+        es_client = document_store.client  # type: ignore[attr-defined]
+        if hasattr(es_client, "ping") and es_client.ping():
+            statuses["elasticsearch"] = True
+    except Exception:
+        statuses["elasticsearch"] = False
+
+    try:
+        s3_storage.client.list_buckets()
+        statuses["s3"] = True
+    except Exception:
+        statuses["s3"] = False
+
+    return statuses

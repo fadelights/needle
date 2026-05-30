@@ -6,9 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from needle.api import router
 from needle.config import settings
 from needle.database import Base, engine
-from needle.models import (
-    Business,
-)  # noqa: F401 - This import is used for Base.metadata.create_all
+from needle.models import Business  # noqa: F401 - This import is used for Base.metadata.create_all
 
 
 @asynccontextmanager

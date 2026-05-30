@@ -8,16 +8,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from haystack.dataclasses import ByteStream
 from sqlalchemy.orm import Session
 
-from .auth import (
-    create_access_token,
-    get_current_business,
-    get_db,
-    get_passwd_hash,
-    verify_passwd,
-)
+from .auth import create_access_token, get_current_business, get_db, get_passwd_hash, verify_passwd
 from .config import settings
 from .models import Business
-from .pipelines import IndexingPipeline, QueryPipeline
+from .pipelines import get_indexing_pipeline, get_query_pipeline
 from .schemas import (
     BusinessCreate,
     BusinessOut,
@@ -45,10 +39,7 @@ SUPPORTED_MIME_TYPES = {
     "text/plain",
 }
 
-# TODO: Are pipelines thread-safe?
-# If not, we may need to create new instances per request or use locks.
-indexing_pipeline = IndexingPipeline(warmup=True)
-query_pipeline = QueryPipeline(warmup=True)
+# TODO: Are the pipelines thread-safe?
 
 
 @router.get("/health")
@@ -56,9 +47,7 @@ async def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@router.post(
-    "/auth/register", response_model=BusinessOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/auth/register", response_model=BusinessOut, status_code=status.HTTP_201_CREATED)
 async def register_business(
     business_in: BusinessCreate, db: Session = Depends(get_db)
 ) -> BusinessOut:
@@ -124,7 +113,7 @@ async def _process_upload(
 
     byte_stream = ByteStream(data=content, mime_type=mime_type)
     try:
-        indexing_pipeline.run(
+        get_indexing_pipeline().run(
             data={
                 "converter": {
                     "sources": [byte_stream],
@@ -243,9 +232,7 @@ async def get_file_content(
     current_business: Business = Depends(get_current_business),
 ) -> FileContentResponse:
     try:
-        content_bytes = s3_storage.get_file(
-            bucket=current_business.business_id, obj=storage_path
-        )
+        content_bytes = s3_storage.get_file(bucket=current_business.business_id, obj=storage_path)
         # We assume UTF-8 for editable files (txt, md)
         content = content_bytes.decode("utf-8")
         return FileContentResponse(content=content, storage_path=storage_path)
@@ -337,7 +324,7 @@ async def query_business(
     current_business: Business = Depends(get_current_business),
 ) -> QueryResponse:
     try:
-        result = query_pipeline.run(
+        result = get_query_pipeline().run(
             data={
                 "embedder": {"text": request.query},
                 "retriever": {

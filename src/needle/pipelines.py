@@ -74,3 +74,13 @@ class QueryPipeline(Pipeline):
 
         if warmup:
             self.warm_up()
+
+
+def get_indexing_pipeline(warmup=True) -> IndexingPipeline:
+    """Return a new IndexingPipeline instance."""
+    return IndexingPipeline()
+
+
+def get_query_pipeline(warmup=True) -> QueryPipeline:
+    """Return a new QueryPipeline instance."""
+    return QueryPipeline()
