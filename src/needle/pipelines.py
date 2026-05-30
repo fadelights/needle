@@ -9,22 +9,15 @@ from haystack_integrations.components.retrievers.elasticsearch import (
 
 from .config import settings
 from .storage import document_store
-from .utils import (
-    NewlineNormalizer,
-    get_document_embedder,
-    get_generator,
-    get_text_embedder,
-)
+from .utils import NewlineNormalizer, get_document_embedder, get_generator, get_text_embedder
 
 
 class IndexingPipeline(Pipeline):
     """Pipeline for indexing documents: convert -> split -> embed -> store."""
 
-    def __init__(self):
+    def __init__(self, warmup: bool = False):
         super().__init__()
-        self.add_component(
-            "converter", MultiFileConverter()
-        )  # TODO: Handle "unclassified" files
+        self.add_component("converter", MultiFileConverter())  # TODO: Handle "unclassified" files
         self.add_component("normalizer", NewlineNormalizer())
         self.add_component(
             "preprocessor",
@@ -42,11 +35,14 @@ class IndexingPipeline(Pipeline):
         self.connect("preprocessor", "embedder")
         self.connect("embedder", "writer")
 
+        if warmup:
+            self.warm_up()
+
 
 class QueryPipeline(Pipeline):
     """Pipeline for querying: retrieve relevant docs -> generate answer."""
 
-    def __init__(self):
+    def __init__(self, warmup: bool = False):
         super().__init__()
         # TODO: The agent will hallucinate if there are no docs
         template = """
@@ -75,3 +71,6 @@ class QueryPipeline(Pipeline):
         self.connect("embedder.embedding", "retriever.query_embedding")
         self.connect("retriever.documents", "prompt_builder.documents")
         self.connect("prompt_builder.prompt", "generator.prompt")
+
+        if warmup:
+            self.warm_up()

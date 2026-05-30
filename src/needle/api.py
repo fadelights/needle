@@ -47,8 +47,8 @@ SUPPORTED_MIME_TYPES = {
 
 # TODO: Are pipelines thread-safe?
 # If not, we may need to create new instances per request or use locks.
-indexing_pipeline = IndexingPipeline()
-query_pipeline = QueryPipeline()
+indexing_pipeline = IndexingPipeline(warmup=True)
+query_pipeline = QueryPipeline(warmup=True)
 
 
 @router.get("/health")
