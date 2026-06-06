@@ -61,10 +61,11 @@ def client(db_session, test_business):
 
     # Patch storage and pipelines so tests never touch object or document stores
     with (
-        patch("needle.api.s3_storage") as mock_storage,
-        patch("needle.api.get_indexing_pipeline") as mock_indexer_factory,
-        patch("needle.api.get_query_pipeline") as mock_query_factory,
+        patch("needle.core.get_s3_storage") as mock_s3_factory,
+        patch("needle.core.get_indexing_pipeline") as mock_indexer_factory,
+        patch("needle.core.get_query_pipeline") as mock_query_factory,
     ):
+        mock_storage = mock_s3_factory.return_value
         mock_indexer = mock_indexer_factory.return_value
         mock_query = mock_query_factory.return_value
         yield TestClient(app), mock_storage, mock_indexer, mock_query
