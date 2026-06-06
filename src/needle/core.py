@@ -93,7 +93,7 @@ def update_content(business_id: str, storage_path: str, content: str) -> Dict[st
     files = s3.list_files(bucket=business_id)
     existing = next(
         (
-            (file["key"], file["metadata"].get("Original-Path"))
+            (file["key"], file["metadata"].get("original-path"))
             for file in files
             if file["key"] == storage_path
         ),

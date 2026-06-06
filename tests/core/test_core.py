@@ -152,7 +152,7 @@ def test_update_content(core_mocks):
     new_content = "updated"
 
     mock_storage.list_files.return_value = [
-        {"key": storage_path, "metadata": {"Original-Path": original_path}}
+        {"key": storage_path, "metadata": {"original-path": original_path}}
     ]
     mock_document_store.filter_documents.return_value = []  # simply need an iterable
 
