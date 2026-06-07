@@ -33,9 +33,14 @@ class NewlineNormalizer:
         }
 
 
-def _get_device():
-    device = ComponentDevice.from_str("cuda:0")
-    return ComponentDevice.resolve_device(device)
+def _get_device() -> ComponentDevice:
+    """Resolve a device string specified via the GENERATOR_DEVICE environment setting,
+    falling back to CPU when the preferred device is unavailable (e.g. no GPU present)."""
+    try:
+        device = ComponentDevice.from_str(settings.generator_device)
+        return ComponentDevice.resolve_device(device)
+    except Exception:
+        return ComponentDevice.from_str("cpu")
 
 
 def get_document_embedder():

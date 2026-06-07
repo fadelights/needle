@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     openai_api_key: str = Field("")
     hf_api_token: str = Field("")
 
+    generator_device: str = Field("cuda:0")
+
     embedding_provider: str = Field("openai")
     embedding_model: str = Field("text-embedding-3-small")
     embedding_dim: int = Field(1536)
@@ -42,9 +44,7 @@ class Settings(BaseSettings):
     needle_port: int = Field(8000)
 
     model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        dotenv_filtering="only_existing"
+        env_file=".env", env_file_encoding="utf-8", dotenv_filtering="only_existing"
     )
 
 
