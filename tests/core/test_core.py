@@ -21,7 +21,6 @@ def test_index_no_storage_path(core_mocks):
         content=content,
         mime_type=mime_type,
         original_path=original_path,
-        warmup=False,
     )
     assert isinstance(result, str)
     assert result.endswith(".md")  # extension should be lowercased
@@ -59,7 +58,6 @@ def test_index_with_storage_path(core_mocks):
         mime_type=mime_type,
         original_path=original_path,
         storage_path=storage_path,
-        warmup=False,
     )
 
     assert result.endswith(".pdf")

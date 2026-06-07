@@ -17,7 +17,6 @@ def index(
     mime_type: str,
     original_path: str,
     storage_path: Optional[str] = None,
-    warmup: bool = True,
 ) -> str:
     """Upload content to storage and index it through the pipeline."""
     file_extension = Path(original_path).suffix.lower()
@@ -33,7 +32,7 @@ def index(
     )
 
     byte_stream = ByteStream(data=content, mime_type=mime_type)
-    pipeline = get_indexing_pipeline(warmup=warmup)
+    pipeline = get_indexing_pipeline()
     pipeline.run(
         data={
             "converter": {

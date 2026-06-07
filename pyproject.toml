@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "needle"
-version = "0.2.1"
+version = "0.3.0"
 description = "Intelligent QA for businesses."
 requires-python = ">=3.12"
 readme = "README.md"
