@@ -19,4 +19,4 @@ To-Do:
 - [x] Add Kibana to the project's docker-compose
 - [ ] Spin up a UI using shadcn
 - [ ] Elasticsearch and Kibana authentication
-- [ ] Package configuration via env variables
+- [x] Package configuration via env variables
