@@ -8,7 +8,7 @@ from haystack_integrations.components.retrievers.elasticsearch import (
 )
 
 from .config import settings
-from .storage import document_store
+from .storage import _session, get_document_store
 from .utils import NewlineNormalizer, get_document_embedder, get_generator, get_text_embedder
 
 
@@ -28,7 +28,7 @@ class IndexingPipeline(Pipeline):
             ),
         )
         self.add_component("embedder", get_document_embedder())
-        self.add_component("writer", DocumentWriter(document_store=document_store))
+        self.add_component("writer", DocumentWriter(document_store=get_document_store()))
 
         self.connect("converter", "normalizer")
         self.connect("normalizer", "preprocessor")
@@ -61,7 +61,7 @@ class QueryPipeline(Pipeline):
         """
         self.add_component("embedder", get_text_embedder())
         self.add_component(
-            "retriever", ElasticsearchEmbeddingRetriever(document_store=document_store)
+            "retriever", ElasticsearchEmbeddingRetriever(document_store=get_document_store())
         )
         self.add_component(
             "prompt_builder", PromptBuilder(template=template, required_variables="*")
@@ -74,3 +74,27 @@ class QueryPipeline(Pipeline):
 
         if warmup:
             self.warm_up()
+
+
+def get_indexing_pipeline() -> IndexingPipeline:
+    """Return the session's IndexingPipeline, creating and caching it on first call.
+
+    The pipeline is created once and reused on every subsequent call.
+    Haystack calls `warm_up()` automatically on the first `run()`.
+    For eager warmup, call `needle.connect(warmup=True)` at startup instead.
+    """
+    if _session.indexing_pipeline is None:
+        _session.indexing_pipeline = IndexingPipeline()
+    return _session.indexing_pipeline  # type: ignore[return-value]
+
+
+def get_query_pipeline() -> QueryPipeline:
+    """Return the session's QueryPipeline, creating and caching it on first call.
+
+    The pipeline is created once and reused on every subsequent call.
+    Haystack calls `warm_up()` automatically on the first `run()`.
+    For eager warmup, call `needle.connect(warmup=True)` at startup instead.
+    """
+    if _session.query_pipeline is None:
+        _session.query_pipeline = QueryPipeline()
+    return _session.query_pipeline  # type: ignore[return-value]

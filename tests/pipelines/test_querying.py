@@ -48,7 +48,7 @@ def query_pipeline(inmem_document_store, mock_text_embedder, mock_generator):
     with (
         patch("needle.pipelines.get_text_embedder", return_value=mock_text_embedder),
         patch("needle.pipelines.get_generator", return_value=mock_generator),
-        patch("needle.pipelines.document_store", inmem_document_store),
+        patch("needle.pipelines.get_document_store", return_value=inmem_document_store),
         patch(
             "needle.pipelines.ElasticsearchEmbeddingRetriever",
             lambda **kwargs: InMemoryEmbeddingRetriever(**kwargs),

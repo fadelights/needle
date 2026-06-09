@@ -80,7 +80,7 @@ def indexing_pipeline(inmem_document_store, mock_document_embedder):
     """
     with (
         patch("needle.pipelines.get_document_embedder", return_value=mock_document_embedder),
-        patch("needle.pipelines.document_store", inmem_document_store),
+        patch("needle.pipelines.get_document_store", return_value=inmem_document_store),
     ):
         from needle.pipelines import IndexingPipeline
 
