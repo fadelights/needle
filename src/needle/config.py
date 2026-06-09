@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     generator_model: str = Field("gpt-4o-mini")
     max_new_tokens: int = Field(256)
 
+    split_method: str = Field("sentence")
     chunk_size: int = Field(8)
     chunk_overlap: int = Field(2)
     top_k: int = Field(5)

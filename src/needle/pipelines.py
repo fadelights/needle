@@ -22,7 +22,7 @@ class IndexingPipeline(Pipeline):
         self.add_component(
             "preprocessor",
             DocumentPreprocessor(
-                split_by="sentence",
+                split_by=settings.split_method,
                 split_length=settings.chunk_size,
                 split_overlap=settings.chunk_overlap,
             ),
