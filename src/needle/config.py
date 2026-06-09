@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     es_host: str = Field("localhost")
     es_port: int = Field(9200)
     es_index: str = Field("documents")
+    es_analyzer: str = Field("english")
 
     minio_root_user: str = Field(...)
     minio_root_password: str = Field(...)
