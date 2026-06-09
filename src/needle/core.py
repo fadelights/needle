@@ -118,17 +118,17 @@ def update_content(business_id: str, storage_path: str, content: str) -> Dict[st
     return {"message": f"File '{storage_path}' updated and re-indexed successfully."}
 
 
-def query(business_id: str, query_text: str, top_k: Optional[int] = None) -> Dict[str, object]:
+def query(business_id: str, text: str, top_k: Optional[int] = None) -> Dict[str, object]:
     """Run a query pipeline and return answer with source chunk metadata."""
     pipeline = get_query_pipeline()
     result = pipeline.run(
         data={
-            "embedder": {"text": query_text},
+            "embedder": {"text": text},
             "retriever": {
                 "filters": {"field": "meta.business_id", "operator": "==", "value": business_id},
                 "top_k": top_k or settings.top_k,
             },
-            "prompt_builder": {"query": query_text},
+            "prompt_builder": {"query": text},
         },
         include_outputs_from=["generator", "retriever"],
     )

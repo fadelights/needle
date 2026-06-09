@@ -244,7 +244,7 @@ async def query_business(
     try:
         result = query(
             business_id=current_business.business_id,
-            query_text=request.query,
+            text=request.query,
             top_k=request.top_k,
         )
 

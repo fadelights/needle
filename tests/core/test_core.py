@@ -201,7 +201,7 @@ def test_query(core_mocks):
         "retriever": {"documents": [Mock(content="text", score=0.9, meta={"file_path": "a.txt"})]},
     }
 
-    result = core.query(business_id=business_id, query_text=query_text, top_k=5)
+    result = core.query(business_id=business_id, text=query_text, top_k=5)
 
     assert result == {
         "answer": "answer",
