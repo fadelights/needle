@@ -10,6 +10,11 @@ from haystack.components.embedders import (
 )
 from haystack.components.generators import HuggingFaceLocalGenerator, OpenAIGenerator
 from haystack.utils import ComponentDevice, Secret
+from haystack_integrations.components.embedders.ollama import (
+    OllamaDocumentEmbedder,
+    OllamaTextEmbedder,
+)
+from haystack_integrations.components.generators.ollama import OllamaGenerator
 
 from .config import settings
 
@@ -56,6 +61,11 @@ def get_document_embedder():
             api_base_url=settings.openai_base_url,
             model=settings.embedding_model,
         )
+    elif settings.embedding_provider.lower() == "ollama":
+        return OllamaDocumentEmbedder(
+            model=settings.embedding_model,
+            url=settings.ollama_base_url,
+        )
 
 
 def get_text_embedder():
@@ -70,6 +80,11 @@ def get_text_embedder():
             api_key=Secret.from_token(settings.openai_api_key),
             api_base_url=settings.openai_base_url,
             model=settings.embedding_model,
+        )
+    elif settings.embedding_provider.lower() == "ollama":
+        return OllamaTextEmbedder(
+            model=settings.embedding_model,
+            url=settings.ollama_base_url,
         )
 
 
@@ -88,4 +103,10 @@ def get_generator():
             api_key=Secret.from_token(settings.openai_api_key),
             api_base_url=settings.openai_base_url,
             model=settings.generator_model,
+        )
+    elif settings.generator_provider.lower() == "ollama":
+        return OllamaGenerator(
+            model=settings.generator_model,
+            url=settings.ollama_base_url,
+            generation_kwargs={"num_predict": settings.max_new_tokens},
         )

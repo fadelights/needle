@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     auth_algorithm: str = Field("HS256")
     access_token_expire_minutes: int = Field(30)
 
+    ollama_base_url: str = Field("http://localhost:11030")
     openai_base_url: str = Field("https://api.openai.com/v1")
     openai_api_key: str = Field("")
     hf_api_token: str = Field("")

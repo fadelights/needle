@@ -4,9 +4,10 @@ boto3
 elasticsearch-haystack
 elasticsearch>=8.0.0,<9.0.0
 fastapi
-haystack-ai>=2.0,<3.0
+haystack-ai>=2.0,<2.31
 kernels
 nltk>=3.9.0
+ollama-haystack==6.6.0
 pydantic
 pydantic-settings
 python-jose[cryptography]
