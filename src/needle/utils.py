@@ -53,6 +53,7 @@ def get_document_embedder():
     elif settings.embedding_provider.lower() == "openai":
         return OpenAIDocumentEmbedder(
             api_key=Secret.from_token(settings.openai_api_key),
+            api_base_url=settings.openai_base_url,
             model=settings.embedding_model,
         )
 
@@ -67,6 +68,7 @@ def get_text_embedder():
     elif settings.embedding_provider.lower() == "openai":
         return OpenAITextEmbedder(
             api_key=Secret.from_token(settings.openai_api_key),
+            api_base_url=settings.openai_base_url,
             model=settings.embedding_model,
         )
 
@@ -84,5 +86,6 @@ def get_generator():
     elif settings.generator_provider.lower() == "openai":
         return OpenAIGenerator(
             api_key=Secret.from_token(settings.openai_api_key),
+            api_base_url=settings.openai_base_url,
             model=settings.generator_model,
         )

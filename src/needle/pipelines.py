@@ -22,7 +22,7 @@ class IndexingPipeline(Pipeline):
         self.add_component(
             "preprocessor",
             DocumentPreprocessor(
-                split_by="sentence",
+                split_by=settings.split_method,
                 split_length=settings.chunk_size,
                 split_overlap=settings.chunk_overlap,
             ),
@@ -50,6 +50,7 @@ class QueryPipeline(Pipeline):
         Don't use your own knowledge - only use the provided documents.
         If you don't know the answer, say you don't know.
         Be friendly, but concise.
+        Respond in the same language as the question.
 
         Context:
         {% for document in documents %}

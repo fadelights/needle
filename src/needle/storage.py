@@ -57,11 +57,14 @@ def _build_document_store(
     scheme: str = "http",
     index: str = "documents",
     embedding_dim: Optional[int] = None,
+    language: Optional[str] = None,
 ) -> ElasticsearchDocumentStore:
     """Construct an ElasticsearchDocumentStore with the needle mapping."""
     if embedding_dim is None:
         embedding_dim = settings.embedding_dim
-    mapping = _build_es_mapping(embedding_dim)
+    if language is None:
+        language = settings.es_analyzer
+    mapping = _build_es_mapping(embedding_dim, language)
 
     return ElasticsearchDocumentStore(
         hosts=f"{scheme}://{host}:{port}",
@@ -70,7 +73,7 @@ def _build_document_store(
     )
 
 
-def _build_es_mapping(embedding_dim: int) -> Dict[str, Any]:
+def _build_es_mapping(embedding_dim: int, language: str) -> Dict[str, Any]:
     return {
         "dynamic": "strict",
         "properties": {
@@ -88,7 +91,7 @@ def _build_es_mapping(embedding_dim: int) -> Dict[str, Any]:
                     "range": {"type": "integer"},
                 },
             },
-            "content": {"type": "text", "analyzer": "english"},  # TODO: configurable analyzer
+            "content": {"type": "text", "analyzer": language},
             "embedding": {
                 "type": "dense_vector",
                 "dims": embedding_dim,
@@ -233,7 +236,7 @@ class S3Storage:
 # Backwards-compatible module-level mapping constant used by test fixtures and
 # any external code that imported ES_MAPPING directly.
 # TODO: Migrate to newer method of getting the mapping via get_document_store() and remove this constant.
-ES_MAPPING = _build_es_mapping(settings.embedding_dim)
+ES_MAPPING = _build_es_mapping(settings.embedding_dim, settings.es_analyzer)
 
 
 def get_document_store() -> ElasticsearchDocumentStore:

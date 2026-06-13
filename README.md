@@ -20,3 +20,5 @@ To-Do:
 - [ ] Spin up a UI using shadcn
 - [ ] Elasticsearch and Kibana authentication
 - [x] Package configuration via env variables
+- [ ] Improved [Persian analyzer](https://www.elastic.co/docs/reference/text-analysis/analysis-lang-analyzer#persian-analyzer) for Elasticsearch
+- [ ] Configurable embeddings dimensions

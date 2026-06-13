@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     es_host: str = Field("localhost")
     es_port: int = Field(9200)
     es_index: str = Field("documents")
+    es_analyzer: str = Field("english")
 
     minio_root_user: str = Field(...)
     minio_root_password: str = Field(...)
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
     auth_algorithm: str = Field("HS256")
     access_token_expire_minutes: int = Field(30)
 
+    openai_base_url: str = Field("https://api.openai.com/v1")
     openai_api_key: str = Field("")
     hf_api_token: str = Field("")
 
@@ -37,6 +39,7 @@ class Settings(BaseSettings):
     generator_model: str = Field("gpt-4o-mini")
     max_new_tokens: int = Field(256)
 
+    split_method: str = Field("sentence")
     chunk_size: int = Field(8)
     chunk_overlap: int = Field(2)
     top_k: int = Field(5)
