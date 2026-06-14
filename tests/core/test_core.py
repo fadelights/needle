@@ -201,10 +201,37 @@ def test_query(core_mocks):
         "retriever": {"documents": [Mock(content="text", score=0.9, meta={"file_path": "a.txt"})]},
     }
 
-    result = core.query(business_id=business_id, text=query_text, top_k=5)
+    with patch("needle.core.settings") as mock_settings:
+        mock_settings.generate_response = True
+        mock_settings.top_k = 5
+
+        result = core.query(business_id=business_id, text=query_text)
 
     assert result == {
         "answer": "answer",
         "source_chunks": [{"content": "text", "score": 0.9, "storage_path": "a.txt"}],
     }
     mock_query_pipeline.run.assert_called_once()
+
+
+def test_query_generate_response_false(core_mocks):
+    _, _, _, mock_query_pipeline = core_mocks
+
+    mock_doc = Mock(content="text", score=0.9, meta={"file_path": "a.txt"})
+    mock_embedder = Mock(**{"run.return_value": {"embedding": [0.1, 0.2]}})
+    mock_retriever = Mock(**{"run.return_value": {"documents": [mock_doc]}})
+    mock_query_pipeline.get_component.side_effect = {
+        "embedder": mock_embedder,
+        "retriever": mock_retriever,
+    }.get
+
+    # set the env value to true to confirm that the function parameter overrides it
+    with patch("needle.core.settings") as mock_settings:
+        mock_settings.generate_response = True
+        mock_settings.top_k = 5
+
+        result = core.query(business_id="acme", text="hello", top_k=3, generate_response=False)
+
+    mock_query_pipeline.run.assert_not_called()
+    assert result["answer"] is None
+    assert result["source_chunks"] == [{"content": "text", "score": 0.9, "storage_path": "a.txt"}]

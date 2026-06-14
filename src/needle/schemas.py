@@ -17,10 +17,11 @@ class SourceChunk(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     top_k: Optional[int] = None
+    generate_response: Optional[bool] = None
 
 
 class QueryResponse(BaseModel):
-    answer: str
+    answer: Optional[str] = None
     source_chunks: List[SourceChunk]
 
 

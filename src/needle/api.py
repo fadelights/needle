@@ -246,6 +246,7 @@ async def query_business(
             business_id=current_business.business_id,
             text=request.query,
             top_k=request.top_k,
+            generate_response=request.generate_response,
         )
 
         source_chunks = [

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     chunk_size: int = Field(8)
     chunk_overlap: int = Field(2)
     top_k: int = Field(5)
+    generate_response: bool = Field(True)
 
     needle_port: int = Field(8000)
 
