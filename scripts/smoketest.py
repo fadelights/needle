@@ -22,8 +22,8 @@ import needle
 # ---------------------------------------------------------------------------
 
 PDF_PATH = Path("data/faqs/faq-1.pdf")
-BUSINESS_ID = "smoke-test"
-TEST_INDEX = "test"
+BUSINESS_ID = "smoketest"
+TEST_INDEX = "smoketest"
 
 QUERIES = [
     "When is lunch time?",
@@ -100,15 +100,15 @@ for f in files:
 check(any(f["key"] == storage_path for f in files), "Indexed file appears in listing")
 
 # ---------------------------------------------------------------------------
-# 4. Query
+# 4a. Query — full pipeline (generate_response=True)
 # ---------------------------------------------------------------------------
 
-print_section("Querying")
+print_section("Querying (with LLM response)")
 
 for i, query in enumerate(QUERIES, 1):
     print(f"\n  [{i}] {query}")
 
-    result = needle.query(business_id=BUSINESS_ID, text=query)
+    result = needle.query(business_id=BUSINESS_ID, text=query, generate_response=True)
     answer = result.get("answer", "").strip()
     chunks = result.get("source_chunks", [])
 
@@ -122,6 +122,30 @@ for i, query in enumerate(QUERIES, 1):
 
     check(bool(answer), f"Query {i} returned a non-empty answer")
     check(len(chunks) > 0, f"Query {i} returned at least one source chunk")
+
+# ---------------------------------------------------------------------------
+# 4b. Query — retrieve only (generate_response=False)
+# ---------------------------------------------------------------------------
+
+print_section("Querying (no LLM response)")
+
+sample_query = QUERIES[0]
+print(f"\n  Query: {sample_query}")
+
+result = needle.query(business_id=BUSINESS_ID, text=sample_query, generate_response=False)
+answer = result.get("answer")
+chunks = result.get("source_chunks", [])
+
+print(f"  Answer: {answer!r}  (expected None)")
+print(f"  Sources: {len(chunks)} chunk(s) retrieved")
+for chunk in chunks:
+    score = chunk.get("score")
+    path = chunk.get("storage_path", "?")
+    preview = (chunk.get("content") or "")[:SEP_LENGTH].replace("\n", " ")
+    print(f"    • [{score:.3f}] {path}: {preview!r}")
+
+check(answer is None, "retrieve-only query returned answer=None")
+check(len(chunks) > 0, "retrieve-only query returned at least one source chunk")
 
 # ---------------------------------------------------------------------------
 # 5. Clean up
