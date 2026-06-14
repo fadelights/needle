@@ -118,23 +118,62 @@ def update_content(business_id: str, storage_path: str, content: str) -> Dict[st
     return {"message": f"File '{storage_path}' updated and re-indexed successfully."}
 
 
-def query(business_id: str, text: str, top_k: Optional[int] = None) -> Dict[str, object]:
-    """Run a query pipeline and return answer with source chunk metadata."""
+def query(
+    business_id: str,
+    text: str,
+    top_k: Optional[int] = None,
+    generate_response: Optional[bool] = None,
+) -> Dict[str, object]:
+    """Run a query pipeline and return answer with source chunk metadata.
+
+    Parameters
+    ----------
+    top_k: Optional[int]
+        Number of top relevant chunks to retrieve.
+        Overrides the default ENV settings if provided.
+    generate_response: Optional[bool]
+        Whether to generate a response using the LLM.
+        Overrides the default ENV settings if provided.
+
+    Notes
+    -----
+    Normally, `generate_response` should be `True` (default behavior if
+    nothing specified in function call or ENV). Setting `generate_response` to
+    `False` will skip the LLM step and return only retrieved chunks, which
+    can be useful when using Needle in a bigger system and you want to handle
+    response generation separately.
+    """
     pipeline = get_query_pipeline()
-    result = pipeline.run(
-        data={
-            "embedder": {"text": text},
-            "retriever": {
-                "filters": {"field": "meta.business_id", "operator": "==", "value": business_id},
-                "top_k": top_k or settings.top_k,
-            },
-            "prompt_builder": {"query": text},
-        },
-        include_outputs_from=["generator", "retriever"],
+
+    top_k = top_k or settings.top_k
+    generate_response = (
+        generate_response if generate_response is not None else settings.generate_response
     )
 
-    answer = result["generator"]["replies"][0]
-    documents = result["retriever"]["documents"]
+    retriever_filters = {"field": "meta.business_id", "operator": "==", "value": business_id}
+
+    if not generate_response:
+        embedding = pipeline.get_component("embedder").run(text=text)["embedding"]
+        documents = pipeline.get_component("retriever").run(
+            query_embedding=embedding,
+            filters=retriever_filters,
+            top_k=top_k,
+        )["documents"]
+        answer = None
+    else:
+        result = pipeline.run(
+            data={
+                "embedder": {"text": text},
+                "retriever": {
+                    "filters": retriever_filters,
+                    "top_k": top_k,
+                },
+                "prompt_builder": {"query": text},
+            },
+            include_outputs_from=["generator", "retriever"],
+        )
+        documents = result["retriever"]["documents"]
+        answer = result["generator"]["replies"][0]
 
     source_chunks: List[Dict[str, object]] = [
         {
