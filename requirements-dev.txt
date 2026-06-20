@@ -6,3 +6,4 @@ locust
 moto[s3]
 pytest
 pytest-asyncio
+watchfiles

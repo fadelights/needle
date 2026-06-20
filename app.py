@@ -58,4 +58,11 @@ if __name__ == "__main__":
     import uvicorn
 
     # TODO: Apply security measures
-    uvicorn.run(app, host="0.0.0.0", port=settings.needle_port)
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=settings.needle_port,
+        reload=True,
+        reload_includes=[".env"],
+        log_level="debug",
+    )
