@@ -12,6 +12,7 @@ from .storage import _session, get_document_store
 from .utils import NewlineNormalizer, get_document_embedder, get_generator, get_text_embedder
 
 
+# TODO: Handle pipeline failures by removing remaining files and artifacts
 class IndexingPipeline(Pipeline):
     """Pipeline for indexing documents: convert -> split -> embed -> store."""
 
@@ -44,22 +45,25 @@ class QueryPipeline(Pipeline):
 
     def __init__(self, warmup: bool = False):
         super().__init__()
-        # TODO: The agent will hallucinate if there are no docs
+
         template = """
-        Given the following information, answer the question.
-        Don't use your own knowledge - only use the provided documents.
-        If you don't know the answer, say you don't know.
-        Be friendly, but concise.
+        Given the following RAG context information, answer the question.
+        Don't use your own knowledge - only use the provided context.
+        If the context is empty, say you don't know.
+        If the answer isn't in the context, say you don't know.
+        Be friendly, formal, and concise. No need for greetings.
         Respond in the same language as the question.
 
-        Context:
+        <rag-context>
         {% for document in documents %}
             {{ document.content }}
         {% endfor %}
+        </rag-context>
 
         Question: {{query}}
         Answer:
         """
+
         self.add_component("embedder", get_text_embedder())
         self.add_component(
             "retriever", ElasticsearchEmbeddingRetriever(document_store=get_document_store())
