@@ -22,3 +22,4 @@ To-Do:
 - [x] Package configuration via env variables
 - [ ] Improved [Persian analyzer](https://www.elastic.co/docs/reference/text-analysis/analysis-lang-analyzer#persian-analyzer) for Elasticsearch
 - [ ] Configurable embeddings dimensions
+- [ ] Knowledge base for document grouping
