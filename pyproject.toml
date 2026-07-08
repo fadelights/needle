@@ -22,9 +22,8 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
+dependencies = {file = ["requirements.txt", "requirements-doc.txt"]}
 optional-dependencies.dev = {file = ["requirements-dev.txt"]}
-optional-dependencies.doc = {file = ["requirements-doc.txt"]}
 
 [tool.pytest.ini_options]
 pythonpath = "."
