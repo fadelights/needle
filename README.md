@@ -4,6 +4,56 @@ Intelligent QA for businesses.
 
 ---
 
+## Installation
+
+Requirements:
+
+- Python 3.12+
+- Docker and Docker Compose
+
+Create a virtual environment and install the project:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+```
+
+The default install includes the document parsing dependencies from
+`requirements-doc.txt`.
+
+For development tools and test dependencies, install the `dev` extra:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+Create the local environment file and update any secrets or model provider
+settings you need:
+
+```bash
+cp .env.example .env
+```
+
+Start the local Elasticsearch, Kibana, and MinIO services:
+
+```bash
+docker compose up -d
+```
+
+Run the API:
+
+```bash
+python app.py
+```
+
+Check that the service is running:
+
+```bash
+curl http://127.0.0.1:11000/api/health
+```
+
 To-Do:
 
 - [x] Add auth
